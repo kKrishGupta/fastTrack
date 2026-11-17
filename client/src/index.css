@@ -318,6 +318,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .map-search__field > svg { flex: none; color: #77867e; }
 .map-search__field input { min-width: 0; height: 34px; flex: 1; padding: 0; border: 0; color: var(--ink); outline: none; }
 .map-search__field input::placeholder { color: #9aa59f; }
+.map-search-feedback { padding: 10px 12px; border: 1px solid #e7c66f; border-radius: 12px; color: #7a5312; background: #fff8e6; font-size: 12px; font-weight: 650; line-height: 1.45; }
 .map-search-results { max-height: 180px; overflow-y: auto; display: grid; border: 1px solid var(--line); border-radius: 13px; background: white; box-shadow: 0 12px 30px rgba(21,48,36,.09); }
 .map-search-results button { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; border: 0; border-top: 1px solid #edf1ee; color: #43534b; background: white; cursor: pointer; font-size: 12px; line-height: 1.45; text-align: left; }
 .map-search-results button:first-child { border-top: 0; }

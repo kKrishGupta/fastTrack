@@ -59,11 +59,66 @@ function coordinatesFrom(value) {
     : null;
 }
 
+function photonResult(feature, index) {
+  const properties = feature?.properties || {};
+  const [longitude, latitude] = feature?.geometry?.coordinates || [];
+  if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return null;
+
+  const addressParts = [
+    properties.name,
+    properties.housenumber,
+    properties.street,
+    properties.locality,
+    properties.district,
+    properties.city,
+    properties.county,
+    properties.state,
+    properties.postcode,
+    properties.country,
+  ].filter(Boolean);
+  const seen = new Set();
+  const displayName = addressParts.filter((part) => {
+    const normalized = String(part).trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  }).join(', ');
+
+  return {
+    place_id: `photon-${properties.osm_type || 'place'}-${properties.osm_id || index}`,
+    lat: String(latitude),
+    lon: String(longitude),
+    display_name: displayName || `${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`,
+  };
+}
+
+async function searchPlaces(searchText) {
+  // Photon is better at named buildings/societies (for example "Homes 121"),
+  // while Nominatim remains a reliable fallback for streets and postcodes.
+  const photonParams = new URLSearchParams({ q: searchText, limit: '5', lang: 'en' });
+  let photonError;
+  try {
+    const photonData = await geocode(`https://photon.komoot.io/api/?${photonParams}`);
+    const photonResults = (photonData?.features || []).map(photonResult).filter(Boolean);
+    if (photonResults.length) return photonResults;
+  } catch (error) {
+    photonError = error;
+  }
+
+  const nominatimParams = new URLSearchParams({ format: 'jsonv2', q: searchText, limit: '5', addressdetails: '1' });
+  try {
+    return await geocode(`https://nominatim.openstreetmap.org/search?${nominatimParams}`);
+  } catch (error) {
+    throw photonError || error;
+  }
+}
+
 export function OfficeMapPicker({ value, onChange }) {
   const position = coordinatesFrom(value);
   const [query, setQuery] = useState(value.address || '');
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('Click the map to place the office entrance.');
+  const [searchError, setSearchError] = useState('');
   const [searching, setSearching] = useState(false);
   const lookupId = useRef(0);
 
@@ -100,25 +155,31 @@ export function OfficeMapPicker({ value, onChange }) {
   const search = async () => {
     const searchText = query.trim();
     if (searchText.length < 3) {
-      setStatus('Enter at least 3 characters to search.');
+      const message = 'Enter at least 3 characters to search.';
+      setSearchError(message);
+      setStatus(message);
       return;
     }
     setSearching(true);
+    setSearchError('');
     setStatus('Searching the map…');
     try {
-      const params = new URLSearchParams({ format: 'jsonv2', q: searchText, limit: '5', addressdetails: '1' });
-      const data = await geocode(`https://nominatim.openstreetmap.org/search?${params}`);
+      const data = await searchPlaces(searchText);
       if (!data.length) {
         setResults([]);
-        setStatus('No matching place found. Try a building name with city, state, or postcode.');
+        const message = 'No matching place found. The existing pin has not changed. Try a building name with city, state, or postcode.';
+        setSearchError(message);
+        setStatus(message);
         return;
       }
 
       const [bestMatch] = data;
+      setSearchError('');
       setResults(data);
       await setLocation(bestMatch.lat, bestMatch.lon, bestMatch.display_name, { keepResults: true });
       setStatus(data.length > 1 ? 'Map moved to the best match. Choose another result below if needed.' : 'Map moved to the matching location.');
     } catch (error) {
+      setSearchError(`${error.message}. The existing pin has not changed.`);
       setStatus(error.message);
     } finally {
       setSearching(false);
@@ -146,7 +207,7 @@ export function OfficeMapPicker({ value, onChange }) {
           <Search size={17} />
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => { setQuery(event.target.value); setSearchError(''); }}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); search(); } }}
             placeholder="Search building, street, city, or postcode"
             aria-label="Search map"
@@ -155,6 +216,8 @@ export function OfficeMapPicker({ value, onChange }) {
         </div>
         <Button type="button" variant="secondary" onClick={useCurrentLocation}><LocateFixed size={16} />Use my location</Button>
       </div>
+
+      {searchError && <div className="map-search-feedback" role="alert">{searchError}</div>}
 
       {results.length > 0 && (
         <div className="map-search-results" role="listbox" aria-label="Map search results">
