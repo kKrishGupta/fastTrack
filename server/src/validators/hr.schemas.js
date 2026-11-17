@@ -36,6 +36,21 @@ export const createOfficeSchema = z.object({
   radiusMeters: z.number().finite().min(25).max(5000),
 });
 
+export const updateOfficeSchema = createOfficeSchema.partial().extend({
+  active: z.boolean().optional(),
+}).superRefine((value, context) => {
+  if ((value.latitude === undefined) !== (value.longitude === undefined)) {
+    context.addIssue({
+      code: 'custom',
+      path: value.latitude === undefined ? ['latitude'] : ['longitude'],
+      message: 'Latitude and longitude must be updated together',
+    });
+  }
+  if (Object.keys(value).length === 0) {
+    context.addIssue({ code: 'custom', message: 'At least one office field is required' });
+  }
+});
+
 export const assignmentSchema = z
   .object({
     employeeId: objectIdSchema,

@@ -1,4 +1,4 @@
-import { assignOffice, createOffice, listAssignedOffices, listOffices } from '../services/office.service.js';
+import { assignOffice, createOffice, listAssignedOffices, listOffices, updateOffice } from '../services/office.service.js';
 import { writeAudit } from '../services/audit.service.js';
 
 export async function list(req, res) { res.json({ items: await listOffices(req.user) }); }
@@ -6,6 +6,17 @@ export async function create(req, res) {
   const item = await createOffice(req.user, req.validated.body);
   await writeAudit({ user: req.user, action: 'office.created', entityType: 'Office', entityId: item.id });
   res.status(201).json({ item });
+}
+export async function update(req, res) {
+  const item = await updateOffice(req.user, req.validated.params.id, req.validated.body);
+  await writeAudit({
+    user: req.user,
+    action: 'office.updated',
+    entityType: 'Office',
+    entityId: item.id,
+    metadata: { active: item.active, radiusMeters: item.radiusMeters },
+  });
+  res.json({ item });
 }
 export async function assign(req, res) {
   const item = await assignOffice(req.user, req.validated.params.id, req.validated.body);

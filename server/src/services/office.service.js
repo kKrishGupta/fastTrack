@@ -15,6 +15,22 @@ export function createOffice(user, data) {
   });
 }
 
+export async function updateOffice(user, officeId, data) {
+  const { latitude, longitude, ...rest } = data;
+  const update = { ...rest };
+  if (latitude !== undefined && longitude !== undefined) {
+    update.location = { type: 'Point', coordinates: [longitude, latitude] };
+  }
+
+  const office = await Office.findOneAndUpdate(
+    { _id: officeId, organizationId: user.organizationId },
+    { $set: update },
+    { new: true, runValidators: true },
+  );
+  if (!office) throw new ApiError(404, 'OFFICE_NOT_FOUND', 'Office not found');
+  return office;
+}
+
 export async function assignOffice(user, officeId, data) {
   const [office, employee] = await Promise.all([
     Office.findOne({ _id: officeId, organizationId: user.organizationId }),

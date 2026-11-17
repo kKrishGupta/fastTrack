@@ -304,10 +304,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .office-card__body { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; padding: 19px; }
 .office-card__body h2 { margin: 0; font-family: 'Manrope', sans-serif; font-size: 18px; letter-spacing: -.035em; }
 .office-card__body p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.office-card__actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .office-card__meta { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; margin-top: 10px; color: #748179; font-size: 11px; }
 
 /* Live office maps */
 .office-form-heading { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 14px; }
+.office-details-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(220px, .6fr); gap: 14px; }
+.office-details-grid__wide { grid-column: 1 / -1; }
 .office-location-picker { display: grid; gap: 11px; }
 .map-search { display: flex; align-items: stretch; gap: 9px; }
 .map-search__field { min-width: 0; min-height: 44px; display: flex; align-items: center; flex: 1; gap: 9px; padding: 4px 5px 4px 13px; border: 1px solid #dbe2dc; border-radius: 13px; background: white; transition: 150ms ease; }
@@ -578,6 +581,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .camera-instruction p { overflow: hidden; text-overflow: ellipsis; }
   .modal { padding: 20px; }
   .office-form-heading { grid-template-columns: 1fr; }
+  .office-details-grid { grid-template-columns: 1fr; }
+  .office-details-grid__wide { grid-column: auto; }
   .map-search { flex-direction: column; }
   .map-search > .button { width: 100%; }
   .office-map-picker { height: 330px; min-height: 280px; }

@@ -61,7 +61,7 @@ function coordinatesFrom(value) {
 
 export function OfficeMapPicker({ value, onChange }) {
   const position = coordinatesFrom(value);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(value.address || '');
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('Click the map to place the office entrance.');
   const [searching, setSearching] = useState(false);

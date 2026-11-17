@@ -7,7 +7,7 @@ import { requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { idParamsSchema } from '../validators/common.schemas.js';
-import { assignmentSchema, attendanceReportQuerySchema, createDepartmentSchema, createOfficeSchema, employeeQuerySchema, inviteEmployeeSchema, updateDepartmentSchema } from '../validators/hr.schemas.js';
+import { assignmentSchema, attendanceReportQuerySchema, createDepartmentSchema, createOfficeSchema, employeeQuerySchema, inviteEmployeeSchema, updateDepartmentSchema, updateOfficeSchema } from '../validators/hr.schemas.js';
 import * as wfh from '../controllers/wfh.controller.js';
 import { reviewWfhRequestSchema, wfhIdParamsSchema, wfhQuerySchema } from '../validators/wfh.schemas.js';
 
@@ -24,6 +24,7 @@ export function createHrRouter({ config, authenticate }) {
   router.delete('/employees/:id', validate(idParamsSchema, 'params'), asyncHandler(employees.remove));
   router.get('/offices', asyncHandler(offices.list));
   router.post('/offices', validate(createOfficeSchema), asyncHandler(offices.create));
+  router.patch('/offices/:id', validate(idParamsSchema, 'params'), validate(updateOfficeSchema), asyncHandler(offices.update));
   router.post('/offices/:id/assignments', validate(idParamsSchema, 'params'), validate(assignmentSchema), asyncHandler(offices.assign));
   router.get('/attendance', validate(attendanceReportQuerySchema, 'query'), asyncHandler(attendance.report));
   router.get('/wfh-requests', validate(wfhQuerySchema, 'query'), asyncHandler(wfh.organizationList));
