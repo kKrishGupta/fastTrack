@@ -67,7 +67,7 @@ export function OfficeMapPicker({ value, onChange }) {
   const [searching, setSearching] = useState(false);
   const lookupId = useRef(0);
 
-  const setLocation = async (latitude, longitude, knownAddress = '') => {
+  const setLocation = async (latitude, longitude, knownAddress = '', options = {}) => {
     const lat = Number(latitude);
     const lng = Number(longitude);
     onChange({
@@ -75,7 +75,7 @@ export function OfficeMapPicker({ value, onChange }) {
       longitude: lng.toFixed(6),
       address: knownAddress || value.address,
     });
-    setResults([]);
+    if (!options.keepResults) setResults([]);
     if (knownAddress) {
       setQuery(knownAddress);
       setStatus('Location selected from the map search.');
@@ -108,8 +108,16 @@ export function OfficeMapPicker({ value, onChange }) {
     try {
       const params = new URLSearchParams({ format: 'jsonv2', q: searchText, limit: '5', addressdetails: '1' });
       const data = await geocode(`https://nominatim.openstreetmap.org/search?${params}`);
+      if (!data.length) {
+        setResults([]);
+        setStatus('No matching place found. Try a building name with city, state, or postcode.');
+        return;
+      }
+
+      const [bestMatch] = data;
       setResults(data);
-      setStatus(data.length ? 'Choose the correct result below.' : 'No matching place found. Try a more specific address.');
+      await setLocation(bestMatch.lat, bestMatch.lon, bestMatch.display_name, { keepResults: true });
+      setStatus(data.length > 1 ? 'Map moved to the best match. Choose another result below if needed.' : 'Map moved to the matching location.');
     } catch (error) {
       setStatus(error.message);
     } finally {
