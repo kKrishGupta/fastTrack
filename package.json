@@ -17,6 +17,9 @@
   "engines": {
     "node": ">=20.19"
   },
+  "dependencies": {
+    "object-inspect": "^1.13.4"
+  },
   "devDependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
     "concurrently": "^9.1.2",
