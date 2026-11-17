@@ -6,15 +6,6 @@ const booleanFromString = z.preprocess(
   z.boolean(),
 );
 
-const optionalAppPassword = z.preprocess(
-  (value) => {
-    if (typeof value !== 'string') return value;
-    const normalized = value.replace(/\s+/g, '');
-    return normalized || undefined;
-  },
-  z.string().length(16, 'GMAIL_APP_PASSWORD must be the 16-character Google App Password').optional(),
-);
-
 const optionalOriginList = z.preprocess(
   (value) => {
     if (typeof value !== 'string') return value;
@@ -37,8 +28,8 @@ const environmentSchema = z
     JWT_SECRET: z.string().min(32, 'JWT_SECRET must contain at least 32 characters'),
     AUTH_COOKIE_HOURS: z.coerce.number().int().min(1).max(24).default(8),
     EMPLOYEE_INVITE_HOURS: z.coerce.number().int().min(1).max(720).default(168),
-    GMAIL_USER: z.string().trim().email().optional(),
-    GMAIL_APP_PASSWORD: optionalAppPassword,
+    RESEND_API_KEY: z.string().trim().min(10, 'RESEND_API_KEY is invalid').optional(),
+    RESEND_FROM_EMAIL: z.string().trim().email().optional(),
     CHALLENGE_MINUTES: z.coerce.number().int().min(1).max(15).default(5),
     TRUST_PROXY: booleanFromString.default(false),
     ALLOW_TEST_FACE_ADAPTER: booleanFromString.default(false),
@@ -60,11 +51,11 @@ const environmentSchema = z
         message: 'The development face adapter cannot be enabled in production',
       });
     }
-    if (Boolean(value.GMAIL_USER) !== Boolean(value.GMAIL_APP_PASSWORD)) {
+    if (Boolean(value.RESEND_API_KEY) !== Boolean(value.RESEND_FROM_EMAIL)) {
       context.addIssue({
         code: 'custom',
-        path: value.GMAIL_USER ? ['GMAIL_APP_PASSWORD'] : ['GMAIL_USER'],
-        message: 'GMAIL_USER and GMAIL_APP_PASSWORD must be configured together',
+        path: value.RESEND_API_KEY ? ['RESEND_FROM_EMAIL'] : ['RESEND_API_KEY'],
+        message: 'RESEND_API_KEY and RESEND_FROM_EMAIL must be configured together',
       });
     }
   });
@@ -91,8 +82,8 @@ export function loadConfig(source = process.env) {
     jwtSecret: env.JWT_SECRET,
     authCookieHours: env.AUTH_COOKIE_HOURS,
     employeeInviteHours: env.EMPLOYEE_INVITE_HOURS,
-    gmailUser: env.GMAIL_USER,
-    gmailAppPassword: env.GMAIL_APP_PASSWORD,
+    resendApiKey: env.RESEND_API_KEY,
+    resendFromEmail: env.RESEND_FROM_EMAIL,
     challengeMinutes: env.CHALLENGE_MINUTES,
     trustProxy: env.TRUST_PROXY,
     allowTestFaceAdapter: env.ALLOW_TEST_FACE_ADAPTER,

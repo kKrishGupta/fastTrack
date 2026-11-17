@@ -34,16 +34,17 @@ describe('environment configuration', () => {
     ).toThrow(/HTTPS|development face adapter/);
   });
 
-  it('normalizes a Google App Password and requires both Gmail settings', () => {
+  it('accepts Resend settings and requires the API key and sender together', () => {
     const config = loadConfig({
       ...validEnvironment,
-      GMAIL_USER: 'mailer@example.com',
-      GMAIL_APP_PASSWORD: 'abcd efgh ijkl mnop',
+      RESEND_API_KEY: 're_test_123456789',
+      RESEND_FROM_EMAIL: 'attendance@example.com',
     });
-    expect(config.gmailAppPassword).toBe('abcdefghijklmnop');
+    expect(config.resendApiKey).toBe('re_test_123456789');
+    expect(config.resendFromEmail).toBe('attendance@example.com');
 
-    expect(() => loadConfig({ ...validEnvironment, GMAIL_USER: 'mailer@example.com' })).toThrow(
-      /GMAIL_APP_PASSWORD/,
+    expect(() => loadConfig({ ...validEnvironment, RESEND_API_KEY: 're_test_123456789' })).toThrow(
+      /RESEND_FROM_EMAIL/,
     );
   });
 });

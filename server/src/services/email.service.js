@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { ApiError } from '../utils/api-error.js';
 
 function escapeHtml(value) {
@@ -20,33 +20,24 @@ export async function sendEmployeeInvitation({
   inviteUrl,
   expiresAt,
 }) {
-  if (!config.gmailUser || !config.gmailAppPassword) {
+  if (!config.resendApiKey || !config.resendFromEmail) {
     throw new ApiError(
       503,
       'EMAIL_NOT_CONFIGURED',
-      'Employee email delivery is not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to the server environment',
+      'Employee email delivery is not configured. Add RESEND_API_KEY and RESEND_FROM_EMAIL to the server environment',
     );
   }
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    connectionTimeout: 4_000,
-    greetingTimeout: 4_000,
-    socketTimeout: 6_000,
-    auth: {
-      user: config.gmailUser,
-      pass: config.gmailAppPassword,
-    },
-  });
+  const resend = new Resend(config.resendApiKey);
   const safeName = escapeHtml(recipientName);
   const safeOrganization = escapeHtml(organizationName);
   const safeWorkspace = escapeHtml(workspaceSlug);
   const safeUrl = escapeHtml(inviteUrl);
   const safeExpiry = escapeHtml(expiresAt.toISOString());
   try {
-    const result = await transporter.sendMail({
-      from: { name: 'FaceTrack Pro', address: config.gmailUser },
-      to: recipientEmail,
+    const { data, error } = await resend.emails.send({
+      from: `FaceTrack Pro <${config.resendFromEmail}>`,
+      to: [recipientEmail],
       subject: `Join ${organizationName} on FaceTrack Pro`,
       html: `
         <div style="background:#f3f5f0;padding:32px 16px;font-family:Arial,sans-serif;color:#15261f">
@@ -68,12 +59,13 @@ export async function sendEmployeeInvitation({
       text: `Hello ${recipientName},\n\nYou were invited to join ${organizationName} on FaceTrack Pro.\n\nActivate your employee account: ${inviteUrl}\n\nWorkspace ID: ${workspaceSlug}\nThis one-time invitation expires at ${expiresAt.toISOString()}.`,
       headers: { 'X-Entity-Ref-ID': invitationId },
     });
-    return result.messageId;
+    if (error || !data?.id) throw new Error(error?.message || 'Resend returned no email ID');
+    return data.id;
   } catch {
     throw new ApiError(
       502,
       'INVITATION_EMAIL_FAILED',
-      'The invitation was created, but Gmail could not accept the email for delivery',
+      'The invitation was created, but Resend could not accept the email for delivery',
     );
   }
 }

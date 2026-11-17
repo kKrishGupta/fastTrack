@@ -120,6 +120,7 @@ On macOS/Linux, use `npm` instead of `npm.cmd`.
 - `ALLOW_TEST_FACE_ADAPTER=true` enables only the clearly marked development adapter. It is rejected automatically in production.
 - Set `ALLOW_TEST_FACE_ADAPTER=false` when testing the fail-closed production behavior.
 - Camera and precise location require HTTPS outside `localhost`.
+- Invitation email uses `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; the sender must belong to a domain verified in Resend for production delivery.
 - Never commit `.env` or production credentials.
 
 ## Backend organization

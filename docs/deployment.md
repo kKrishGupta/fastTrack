@@ -33,9 +33,12 @@ Configure these environment variables in the Render dashboard rather than upload
 - a newly generated `JWT_SECRET` containing at least 32 characters
 - `TRUST_PROXY=true`
 - `ALLOW_TEST_FACE_ADAPTER=false`
-- Gmail credentials only when invitation email is enabled
+- `RESEND_API_KEY` from the Resend API Keys page when invitation email is enabled
+- `RESEND_FROM_EMAIL=attendance@your-domain.example`, using a sender on a domain verified in Resend
 
 Render supplies `PORT`; do not hardcode a production port. Every production origin must use HTTPS and must be listed exactly, without a path. If more than one frontend origin is needed, separate them with commas in `ALLOWED_ORIGINS`.
+
+Invitation email uses Resend's HTTPS API rather than SMTP. Remove the retired `GMAIL_USER` and `GMAIL_APP_PASSWORD` variables from Render. Resend's testing sender is suitable only for initial account testing; verify a domain and use an address on that domain before sending invitations to employees.
 
 Deploy the Vite client separately as a Render **Static Site**:
 
