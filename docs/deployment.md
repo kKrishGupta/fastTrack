@@ -48,7 +48,7 @@ After changing either public URL, update both services' environment variables an
 
 ## Vercel frontend with Render API
 
-The client includes `client/vercel.json`, which proxies browser requests from `/api/*` to the Render API and provides the SPA fallback for React Router. Keep `VITE_API_BASE_URL=/api` (or leave it unset) so authentication cookies remain first-party on the Vercel origin.
+The repository includes equivalent `vercel.json` files at the repository root and in `client/`. Vercel uses the file that belongs to the configured project root. They proxy browser requests from `/api/*` to the Render API and provide the SPA fallback for React Router. Keep `VITE_API_BASE_URL=/api` (or leave it unset) so authentication cookies remain first-party on the Vercel origin.
 
 Configure the Vercel project with:
 
