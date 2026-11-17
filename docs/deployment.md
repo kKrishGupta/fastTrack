@@ -14,3 +14,34 @@ For a future production release:
 8. Select a supported production map/tile provider and follow its attribution and usage policy.
 
 Complete privacy, employment-law, biometric-processing, retention, accessibility, and human-review assessments before organizational deployment.
+
+## Render
+
+Deploy the API as a Render **Web Service** with these settings:
+
+- Root Directory: `server`
+- Build Command: `npm install && npm run build`
+- Start Command: `npm start`
+- Health Check Path: `/api/health`
+
+Configure these environment variables in the Render dashboard rather than uploading a local `.env` file:
+
+- `NODE_ENV=production`
+- `CLIENT_ORIGIN=https://your-frontend.example`
+- `ALLOWED_ORIGINS=https://your-frontend.example`
+- `MONGODB_URI` with a dedicated database name
+- a newly generated `JWT_SECRET` containing at least 32 characters
+- `TRUST_PROXY=true`
+- `ALLOW_TEST_FACE_ADAPTER=false`
+- Gmail credentials only when invitation email is enabled
+
+Render supplies `PORT`; do not hardcode a production port. Every production origin must use HTTPS and must be listed exactly, without a path. If more than one frontend origin is needed, separate them with commas in `ALLOWED_ORIGINS`.
+
+Deploy the Vite client separately as a Render **Static Site**:
+
+- Root Directory: `client`
+- Build Command: `npm install && npm run build`
+- Publish Directory: `dist`
+- `VITE_API_BASE_URL=https://your-api.example/api`
+
+After changing either public URL, update both services' environment variables and redeploy them.
