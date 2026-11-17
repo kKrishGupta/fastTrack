@@ -15,11 +15,24 @@ const optionalAppPassword = z.preprocess(
   z.string().length(16, 'GMAIL_APP_PASSWORD must be the 16-character Google App Password').optional(),
 );
 
+const optionalOriginList = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    const origins = value
+      .split(',')
+      .map((origin) => origin.trim().replace(/\/$/, ''))
+      .filter(Boolean);
+    return origins.length ? origins : undefined;
+  },
+  z.array(z.string().url()).min(1).optional(),
+);
+
 const environmentSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     CLIENT_ORIGIN: z.string().url().default('http://localhost:5173'),
+    ALLOWED_ORIGINS: optionalOriginList,
     MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
     JWT_SECRET: z.string().min(32, 'JWT_SECRET must contain at least 32 characters'),
     AUTH_COOKIE_HOURS: z.coerce.number().int().min(1).max(24).default(8),
@@ -32,11 +45,12 @@ const environmentSchema = z
     DEV_LOCATION_ACCURACY_MAX: z.coerce.number().int().min(80).max(500).default(150),
   })
   .superRefine((value, context) => {
-    if (value.NODE_ENV === 'production' && !value.CLIENT_ORIGIN.startsWith('https://')) {
+    const allowedOrigins = [value.CLIENT_ORIGIN, ...(value.ALLOWED_ORIGINS || [])];
+    if (value.NODE_ENV === 'production' && allowedOrigins.some((origin) => !origin.startsWith('https://'))) {
       context.addIssue({
         code: 'custom',
-        path: ['CLIENT_ORIGIN'],
-        message: 'CLIENT_ORIGIN must use HTTPS in production',
+        path: ['ALLOWED_ORIGINS'],
+        message: 'CLIENT_ORIGIN and every ALLOWED_ORIGINS entry must use HTTPS in production',
       });
     }
     if (value.NODE_ENV === 'production' && value.ALLOW_TEST_FACE_ADAPTER) {
@@ -65,11 +79,14 @@ export function loadConfig(source = process.env) {
   }
 
   const env = result.data;
+  const clientOrigin = env.CLIENT_ORIGIN.replace(/\/$/, '');
+  const allowedOrigins = [...new Set([clientOrigin, ...(env.ALLOWED_ORIGINS || [])])];
   return Object.freeze({
     nodeEnv: env.NODE_ENV,
     isProduction: env.NODE_ENV === 'production',
     port: env.PORT,
-    clientOrigin: env.CLIENT_ORIGIN,
+    clientOrigin,
+    allowedOrigins: Object.freeze(allowedOrigins),
     mongoUri: env.MONGODB_URI,
     jwtSecret: env.JWT_SECRET,
     authCookieHours: env.AUTH_COOKIE_HOURS,

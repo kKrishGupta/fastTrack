@@ -4,6 +4,7 @@ import { createApp } from '../src/app.js';
 
 const config = Object.freeze({
   clientOrigin: 'http://localhost:5173',
+  allowedOrigins: Object.freeze(['http://localhost:5173', 'http://127.0.0.1:5173']),
   jwtSecret: '12345678901234567890123456789012',
   authCookieHours: 8,
   challengeMinutes: 5,
@@ -27,6 +28,20 @@ describe('Express application', () => {
     expect(response.body.error.code).toBe('ROUTE_NOT_FOUND');
   });
 
+  it('allows configured CORS origins with credentials', async () => {
+    const origin = 'http://127.0.0.1:5173';
+    const response = await request(app).get('/api/health').set('Origin', origin);
+    expect(response.status).toBe(200);
+    expect(response.headers['access-control-allow-origin']).toBe(origin);
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
+  });
+
+  it('rejects origins that are not in the CORS allowlist', async () => {
+    const response = await request(app).get('/api/health').set('Origin', 'https://attacker.example');
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('CORS_ORIGIN_REJECTED');
+  });
+
   it('rejects cookie-authenticated mutations without a CSRF token', async () => {
     const response = await request(app)
       .post('/api/attendance/check-out')
@@ -41,16 +56,16 @@ describe('Express application', () => {
       .post('/api/attendance/check-out')
       .set('Origin', 'https://attacker.example');
     expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe('CSRF_REJECTED');
+    expect(response.body.error.code).toBe('CORS_ORIGIN_REJECTED');
   });
 
-  it('also applies origin protection to login requests', async () => {
+  it('also blocks foreign origins on login requests', async () => {
     const response = await request(app)
       .post('/api/organization/login')
       .set('Origin', 'https://attacker.example')
       .send({ email: 'person@example.com', password: 'Password123!' });
     expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe('CSRF_REJECTED');
+    expect(response.body.error.code).toBe('CORS_ORIGIN_REJECTED');
   });
 
   it('exposes organization registration under the organization namespace', async () => {

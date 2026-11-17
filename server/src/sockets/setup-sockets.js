@@ -14,11 +14,15 @@ function readCookie(header, name) {
 }
 
 export function setupSockets(server, config) {
+  const allowedOrigins = new Set(config.allowedOrigins || [config.clientOrigin]);
   const io = new Server(server, {
-    cors: { origin: config.clientOrigin, credentials: true },
+    cors: {
+      origin: [...allowedOrigins],
+      credentials: true,
+    },
     allowRequest: (request, callback) => {
       const origin = request.headers.origin;
-      callback(null, origin === config.clientOrigin || (!config.isProduction && !origin));
+      callback(null, (origin && allowedOrigins.has(origin.replace(/\/$/, ''))) || (!config.isProduction && !origin));
     },
   });
   io.use(async (socket, next) => {

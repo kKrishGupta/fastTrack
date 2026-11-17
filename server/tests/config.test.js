@@ -11,9 +11,17 @@ const validEnvironment = {
 
 describe('environment configuration', () => {
   it('coerces typed settings', () => {
-    const config = loadConfig({ ...validEnvironment, ALLOW_TEST_FACE_ADAPTER: 'true' });
+    const config = loadConfig({
+      ...validEnvironment,
+      ALLOWED_ORIGINS: 'http://localhost:5173, http://127.0.0.1:5173/',
+      ALLOW_TEST_FACE_ADAPTER: 'true',
+    });
     expect(config.port).toBe(4000);
     expect(config.allowTestFaceAdapter).toBe(true);
+    expect(config.allowedOrigins).toEqual([
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ]);
   });
 
   it('requires HTTPS and disables the test face adapter in production', () => {

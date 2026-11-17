@@ -10,11 +10,12 @@ const PUBLIC_AUTH_MUTATIONS = new Set([
 ]);
 
 export function createOriginProtection(config) {
+  const allowedOrigins = new Set(config.allowedOrigins || [config.clientOrigin]);
   return (req, res, next) => {
     if (SAFE_METHODS.has(req.method)) return next();
 
     const origin = req.get('origin');
-    if (origin && origin !== config.clientOrigin) {
+    if (origin && !allowedOrigins.has(origin.replace(/\/$/, ''))) {
       return next(new ApiError(403, 'CSRF_REJECTED', 'Untrusted request origin'));
     }
 
