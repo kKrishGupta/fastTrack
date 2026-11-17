@@ -1,5 +1,18 @@
 import crypto from 'node:crypto';
-import { Department, EmployeeInvitation, OfficeAssignment, Organization, User } from '../models.js';
+import {
+  Attendance,
+  AttendanceChallenge,
+  AuditLog,
+  Department,
+  EmployeeInvitation,
+  EnrollmentSession,
+  FaceProfile,
+  OfficeAssignment,
+  Organization,
+  User,
+  VerificationEvent,
+  WorkFromHomeRequest,
+} from '../models.js';
 import { ApiError } from '../utils/api-error.js';
 import { escapeRegExp, serializeUser } from '../utils/serializers.js';
 import { sendEmployeeInvitation } from './email.service.js';
@@ -31,26 +44,118 @@ export async function listEmployees(user, filters) {
       .sort({ createdAt: -1 }),
     User.countDocuments(query),
   ]);
-  const assignments = await OfficeAssignment.find({
-    organizationId: user.organizationId,
-    employeeId: { $in: documents.map((document) => document._id) },
-    active: true,
-  }).populate('officeId', 'name address active');
+  const employeeIds = documents.map((document) => document._id);
+  const [assignments, pendingInvitationEmployeeIds] = await Promise.all([
+    OfficeAssignment.find({
+      organizationId: user.organizationId,
+      employeeId: { $in: employeeIds },
+      active: true,
+    }).populate('officeId', 'name address active'),
+    EmployeeInvitation.find({
+      organizationId: user.organizationId,
+      employeeId: { $in: employeeIds },
+      status: 'pending',
+      active: true,
+      expiresAt: { $gt: new Date() },
+    }).distinct('employeeId'),
+  ]);
   const officeByEmployee = new Map(
     assignments
       .filter((assignment) => assignmentIsValid(assignment) && assignment.officeId?.active)
       .map((assignment) => [String(assignment.employeeId), assignment.officeId]),
   );
+  const employeesWithPendingInvitation = new Set(pendingInvitationEmployeeIds.map(String));
 
   return {
     items: documents.map((document) => ({
       ...serializeUser(document),
       assignedOffice: officeByEmployee.get(String(document._id)) ?? null,
+      invitationPending: employeesWithPendingInvitation.has(String(document._id)),
     })),
     page: filters.page,
     limit: filters.limit,
     total,
     pages: Math.ceil(total / filters.limit),
+  };
+}
+
+async function findOrganizationEmployee(user, employeeId, session) {
+  const query = User.findOne({
+    _id: employeeId,
+    organizationId: user.organizationId,
+    role: 'Employee',
+  });
+  if (session) query.session(session);
+  const employee = await query;
+  if (!employee) throw new ApiError(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
+  return employee;
+}
+
+export async function revokeEmployeeInvitations(user, employeeId) {
+  const employee = await findOrganizationEmployee(user, employeeId);
+  const result = await EmployeeInvitation.updateMany(
+    {
+      organizationId: user.organizationId,
+      employeeId: employee.id,
+      status: 'pending',
+      active: true,
+    },
+    { status: 'revoked', active: false },
+  );
+
+  return {
+    employeeId: employee.id,
+    revokedCount: result.modifiedCount,
+  };
+}
+
+export async function deleteEmployee(user, employeeId) {
+  const session = await User.startSession();
+  let deletedEmployee;
+
+  try {
+    await session.withTransaction(async () => {
+      deletedEmployee = await findOrganizationEmployee(user, employeeId, session);
+      const filter = {
+        organizationId: user.organizationId,
+        employeeId: deletedEmployee.id,
+      };
+
+      await EmployeeInvitation.deleteMany(filter, { session });
+      await OfficeAssignment.deleteMany(filter, { session });
+      await WorkFromHomeRequest.deleteMany(filter, { session });
+      await FaceProfile.deleteMany(filter, { session });
+      await EnrollmentSession.deleteMany(filter, { session });
+      await AttendanceChallenge.deleteMany(filter, { session });
+      await VerificationEvent.deleteMany(filter, { session });
+      await Attendance.deleteMany(filter, { session });
+      await AuditLog.deleteMany({
+        organizationId: user.organizationId,
+        $or: [
+          { actorId: deletedEmployee.id },
+          { entityType: 'User', entityId: deletedEmployee.id },
+        ],
+      }, { session });
+      await User.deleteOne({
+        _id: deletedEmployee.id,
+        organizationId: user.organizationId,
+        role: 'Employee',
+      }, { session });
+      await AuditLog.create([{
+        organizationId: user.organizationId,
+        actorId: user.id,
+        action: 'employee.deleted',
+        entityType: 'User',
+        entityId: deletedEmployee.id,
+        metadata: { recordsPurged: true },
+      }], { session });
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  return {
+    employeeId: deletedEmployee.id,
   };
 }
 

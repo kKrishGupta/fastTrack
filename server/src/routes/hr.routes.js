@@ -20,6 +20,8 @@ export function createHrRouter({ config, authenticate }) {
   router.patch('/departments/:id', validate(idParamsSchema, 'params'), validate(updateDepartmentSchema), asyncHandler(departments.update));
   router.get('/employees', validate(employeeQuerySchema, 'query'), asyncHandler(employees.list));
   router.post('/employees/invitations', validate(inviteEmployeeSchema), asyncHandler(employees.invite));
+  router.delete('/employees/:id/invitations', validate(idParamsSchema, 'params'), asyncHandler(employees.revokeInvitations));
+  router.delete('/employees/:id', validate(idParamsSchema, 'params'), asyncHandler(employees.remove));
   router.get('/offices', asyncHandler(offices.list));
   router.post('/offices', validate(createOfficeSchema), asyncHandler(offices.create));
   router.post('/offices/:id/assignments', validate(idParamsSchema, 'params'), validate(assignmentSchema), asyncHandler(offices.assign));

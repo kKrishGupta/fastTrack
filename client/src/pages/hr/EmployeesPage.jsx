@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, CheckCircle2, Copy, MailPlus, MapPin, Plus, Search, Settings2, TriangleAlert, UserRound } from 'lucide-react';
+import { Ban, Check, CheckCircle2, Copy, MailPlus, MapPin, Plus, Search, Settings2, Trash2, TriangleAlert, UserRound } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -20,6 +20,8 @@ export function EmployeesPage() {
   const [copyStatus, setCopyStatus] = useState('idle');
   const [assignmentEmployee, setAssignmentEmployee] = useState(null);
   const [selectedOfficeId, setSelectedOfficeId] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const queryClient = useQueryClient();
   const employees = useQuery({ queryKey: ['hr', 'employees', { search }], queryFn: () => hrService.employees({ search, limit: 50 }) });
   const departments = useQuery({ queryKey: ['hr', 'departments'], queryFn: hrService.departments });
@@ -39,6 +41,22 @@ export function EmployeesPage() {
       queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
       setAssignmentEmployee(null);
       setSelectedOfficeId('');
+    },
+  });
+  const revokeInvitation = useMutation({
+    mutationFn: hrService.revokeEmployeeInvitations,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
+      setAssignmentEmployee((current) => current ? { ...current, invitationPending: false } : current);
+    },
+  });
+  const removeEmployee = useMutation({
+    mutationFn: hrService.deleteEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
+      setDeleteTarget(null);
+      setDeleteConfirmation('');
+      setAssignmentEmployee(null);
     },
   });
 
@@ -71,9 +89,19 @@ export function EmployeesPage() {
 
   const openOfficeAssignment = (employee) => {
     assignOffice.reset();
+    revokeInvitation.reset();
     setAssignmentEmployee(employee);
     setSelectedOfficeId(employee.assignedOffice?._id || employee.assignedOffice?.id || '');
   };
+
+  const openDeleteConfirmation = () => {
+    removeEmployee.reset();
+    setDeleteTarget(assignmentEmployee);
+    setDeleteConfirmation('');
+    setAssignmentEmployee(null);
+  };
+
+  const deleteConfirmationValue = deleteTarget?.employeeCode || deleteTarget?.email || '';
 
   const submitOfficeAssignment = (event) => {
     event.preventDefault();
@@ -107,7 +135,7 @@ export function EmployeesPage() {
                     <td>{employee.assignedOffice ? <div className="office-cell"><MapPin size={15} /><div><strong>{employee.assignedOffice.name}</strong><span>{employee.assignedOffice.address || 'Active office'}</span></div></div> : <Badge tone="warning">Not assigned</Badge>}</td>
                     <td><Badge tone={employee.enrollmentStatus === 'complete' ? 'success' : 'warning'} dot>{titleCase(employee.enrollmentStatus)}</Badge></td>
                     <td><Badge tone={employee.status === 'active' ? 'success' : employee.status === 'invited' ? 'warning' : 'neutral'}>{titleCase(employee.status)}</Badge></td>
-                    <td><Button size="sm" variant="secondary" onClick={() => openOfficeAssignment(employee)}><Settings2 size={14} />Assign</Button></td>
+                    <td><Button size="sm" variant="secondary" onClick={() => openOfficeAssignment(employee)}><Settings2 size={14} />Manage</Button></td>
                   </tr>
                 ))}
               </tbody>
@@ -159,15 +187,42 @@ export function EmployeesPage() {
         </Modal>
       )}
       {assignmentEmployee && (
-        <Modal title="Assign office" description={`Choose the attendance office for ${assignmentEmployee.name}.`} onClose={() => setAssignmentEmployee(null)}>
+        <Modal title="Manage employee" description={`Manage office access and membership for ${assignmentEmployee.name}.`} onClose={() => setAssignmentEmployee(null)}>
           <form className="modal-form" onSubmit={submitOfficeAssignment}>
             <div className="assignment-person"><span className="avatar">{initials(assignmentEmployee.name)}</span><div><strong>{assignmentEmployee.name}</strong><p>{assignmentEmployee.employeeCode} · {assignmentEmployee.departmentId?.name || 'No department'}</p></div></div>
             <label className="form-field"><span>Office location</span><select required autoFocus value={selectedOfficeId} onChange={(event) => setSelectedOfficeId(event.target.value)}><option value="">Select an office</option>{offices.data?.filter((office) => office.active).map((office) => <option value={office._id} key={office._id}>{office.name}{office.address ? ` — ${office.address}` : ''}</option>)}</select></label>
             {!offices.isLoading && !offices.data?.length && <div className="form-alert">Create an office location before assigning employees.</div>}
             {assignOffice.isError && <div className="form-alert">{assignOffice.error.message}</div>}
             <p className="form-helper">Assigning a new office replaces the employee's current active office.</p>
-            <div className="modal-actions"><Button variant="secondary" onClick={() => setAssignmentEmployee(null)}>Cancel</Button><Button type="submit" disabled={!selectedOfficeId || assignOffice.isPending}>{assignOffice.isPending ? 'Assigning…' : 'Assign office'}</Button></div>
+            <div className="modal-actions"><Button variant="secondary" onClick={() => setAssignmentEmployee(null)}>Close</Button><Button type="submit" disabled={!selectedOfficeId || assignOffice.isPending}>{assignOffice.isPending ? 'Assigning…' : 'Assign office'}</Button></div>
           </form>
+          <div className="member-access-actions">
+            <div><strong>Access and membership</strong><p>Revoke an unused activation link or permanently remove this member and their records.</p></div>
+            {revokeInvitation.isSuccess && <div className="form-success">Invitation token revoked. The previous activation link can no longer be used.</div>}
+            {revokeInvitation.isError && <div className="form-alert">{revokeInvitation.error.message}</div>}
+            <div className="member-access-actions__buttons">
+              {assignmentEmployee.invitationPending && (
+                <Button variant="secondary" onClick={() => revokeInvitation.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={revokeInvitation.isPending}>
+                  <Ban size={15} />{revokeInvitation.isPending ? 'Revoking…' : 'Revoke invitation'}
+                </Button>
+              )}
+              <Button variant="danger" onClick={openDeleteConfirmation}><Trash2 size={15} />Delete member</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {deleteTarget && (
+        <Modal title="Delete member permanently" description="This action cannot be undone." onClose={() => setDeleteTarget(null)}>
+          <div className="delete-member-confirmation">
+            <div className="delete-member-warning"><TriangleAlert size={20} /><div><strong>All employee data will be removed</strong><p>This deletes invitations, office assignments, WFH requests, face enrollment, verification evidence, and attendance history.</p></div></div>
+            <div className="assignment-person"><span className="avatar">{initials(deleteTarget.name)}</span><div><strong>{deleteTarget.name}</strong><p>{deleteTarget.employeeCode} · {deleteTarget.email}</p></div></div>
+            <label className="form-field"><span>Type <strong>{deleteConfirmationValue}</strong> to confirm</span><input autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" /></label>
+            {removeEmployee.isError && <div className="form-alert">{removeEmployee.error.message}</div>}
+            <div className="modal-actions">
+              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+              <Button variant="danger" disabled={deleteConfirmation.trim() !== deleteConfirmationValue || removeEmployee.isPending} onClick={() => removeEmployee.mutate(deleteTarget.id || deleteTarget._id)}><Trash2 size={16} />{removeEmployee.isPending ? 'Deleting…' : 'Delete permanently'}</Button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
