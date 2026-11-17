@@ -114,6 +114,7 @@ export async function inviteEmployee(user, data, config) {
   const organization = await Organization.findById(user.organizationId).select('name slug');
   if (!organization) throw new ApiError(404, 'ORGANIZATION_NOT_FOUND', 'Organization not found');
 
+  let delivered = false;
   try {
     const emailProviderId = await sendEmployeeInvitation({
       config,
@@ -128,11 +129,12 @@ export async function inviteEmployee(user, data, config) {
     invitation.emailProviderId = emailProviderId;
     invitation.emailSentAt = new Date();
     await invitation.save();
+    delivered = true;
   } catch (error) {
-    invitation.status = 'revoked';
-    invitation.active = false;
-    await invitation.save();
-    throw error;
+    console.warn('Employee invitation email was not delivered; manual sharing is available', {
+      code: error.code ?? 'INVITATION_EMAIL_FAILED',
+      invitationId: invitation.id,
+    });
   }
 
   return {
@@ -141,7 +143,8 @@ export async function inviteEmployee(user, data, config) {
     invitation: {
       email: employee.email,
       expiresAt,
-      delivered: true,
+      delivered,
+      url: inviteUrl.toString(),
     },
   };
 }

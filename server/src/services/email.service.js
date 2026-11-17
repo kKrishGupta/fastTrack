@@ -30,6 +30,9 @@ export async function sendEmployeeInvitation({
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
+    connectionTimeout: 4_000,
+    greetingTimeout: 4_000,
+    socketTimeout: 6_000,
     auth: {
       user: config.gmailUser,
       pass: config.gmailAppPassword,

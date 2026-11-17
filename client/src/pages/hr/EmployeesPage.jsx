@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, MailPlus, MapPin, Plus, Search, Settings2, UserRound } from 'lucide-react';
+import { Check, CheckCircle2, Copy, MailPlus, MapPin, Plus, Search, Settings2, TriangleAlert, UserRound } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -17,6 +17,7 @@ export function EmployeesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [invitation, setInvitation] = useState(null);
+  const [copyStatus, setCopyStatus] = useState('idle');
   const [assignmentEmployee, setAssignmentEmployee] = useState(null);
   const [selectedOfficeId, setSelectedOfficeId] = useState('');
   const queryClient = useQueryClient();
@@ -28,6 +29,7 @@ export function EmployeesPage() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
       setInvitation(result.invitation);
+      setCopyStatus('idle');
       setForm(emptyForm);
     },
   });
@@ -43,8 +45,19 @@ export function EmployeesPage() {
   const closeDialog = () => {
     setDialogOpen(false);
     setInvitation(null);
+    setCopyStatus('idle');
     inviteEmployee.reset();
     setForm(emptyForm);
+  };
+
+  const copyInvitationLink = async () => {
+    if (!invitation?.url) return;
+    try {
+      await navigator.clipboard.writeText(invitation.url);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
+    }
   };
 
   const submit = (event) => {
@@ -109,7 +122,22 @@ export function EmployeesPage() {
             <div className="invite-result">
               <span className="invite-result__icon"><CheckCircle2 size={24} /></span>
               <div><strong>{invitation.email}</strong><p>Expires {formatDateTime(invitation.expiresAt)}</p></div>
-              <div className="invite-delivered"><MailPlus size={18} /><div><strong>Invitation email sent</strong><p>Gmail accepted the message for delivery. The employee can activate the account from the secure one-time link in that email.</p></div></div>
+              {invitation.delivered ? (
+                <div className="invite-delivered"><MailPlus size={18} /><div><strong>Invitation email sent</strong><p>The employee can use the email or the secure link below to activate their account.</p></div></div>
+              ) : (
+                <div className="invite-delivered invite-delivered--warning"><TriangleAlert size={18} /><div><strong>Email could not be sent</strong><p>The invitation is still active. Copy this secure link and share it directly with the employee.</p></div></div>
+              )}
+              <div className="invite-link">
+                <label htmlFor="employee-invitation-link">Secure activation link</label>
+                <div className="invite-link__control">
+                  <input id="employee-invitation-link" readOnly value={invitation.url || ''} onFocus={(event) => event.target.select()} />
+                  <Button type="button" onClick={copyInvitationLink} disabled={!invitation.url}>
+                    {copyStatus === 'copied' ? <Check size={16} /> : <Copy size={16} />}
+                    {copyStatus === 'copied' ? 'Copied' : 'Copy link'}
+                  </Button>
+                </div>
+                {copyStatus === 'error' && <p className="invite-copy-error">Could not access the clipboard. Select the link and copy it manually.</p>}
+              </div>
               <p className="invite-result__note">FaceTrack stores only a hash of the invitation token. The link stops working after activation or expiry.</p>
               <div className="modal-actions">
                 <Button onClick={closeDialog}>Done</Button>
