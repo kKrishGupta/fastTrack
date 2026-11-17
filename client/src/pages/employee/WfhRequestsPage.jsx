@@ -1,0 +1,23 @@
+import { useState } from 'react';
+import { CalendarDays, Home, LocateFixed, Send } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { EmptyState, ErrorState, LoadingState } from '../../components/ui/DataState';
+import { getCurrentPosition } from '../../hooks/useAttendanceFlow';
+import { wfhService } from '../../services/wfhService';
+import { titleCase } from '../../utils/formatters';
+
+export function WfhRequestsPage() {
+  const [form, setForm] = useState({ requestDate: '', reason: '', locationLabel: '' });
+  const [position, setPosition] = useState(null);
+  const [locationError, setLocationError] = useState('');
+  const queryClient = useQueryClient();
+  const requests = useQuery({ queryKey: ['employee', 'wfh-requests'], queryFn: () => wfhService.employeeRequests({ limit: 50 }) });
+  const createRequest = useMutation({ mutationFn: wfhService.createRequest, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['employee', 'wfh-requests'] }); setForm({ requestDate: '', reason: '', locationLabel: '' }); setPosition(null); } });
+  const captureLocation = async () => { setLocationError(''); try { const value = await getCurrentPosition(); setPosition({ latitude: value.coords.latitude, longitude: value.coords.longitude, accuracy: value.coords.accuracy }); } catch (error) { setLocationError(error.message); } };
+  const submit = (event) => { event.preventDefault(); if (position) createRequest.mutate({ ...form, position }); };
+  const minimumDate = new Date().toISOString().slice(0, 10);
+  return <div className="page-enter employee-wfh-page"><header className="employee-page-header"><div><p className="eyebrow">Hybrid work</p><h1>Work from home requests</h1><p>Request a specific day and intended work location. HR approval, fresh GPS and face verification are all required before check-in.</p></div></header><div className="wfh-layout"><Card className="wfh-request-form"><span className="wfh-card-icon"><Home size={22} /></span><h2>New WFH request</h2><form className="modal-form" onSubmit={submit}><label className="form-field"><span>Work date</span><input type="date" min={minimumDate} required value={form.requestDate} onChange={(event) => setForm((current) => ({ ...current, requestDate: event.target.value }))} /></label><label className="form-field"><span>Reason</span><textarea rows={4} minLength={10} maxLength={500} required value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Why do you need to work remotely on this date?" /></label><label className="form-field"><span>Location label</span><input value={form.locationLabel} onChange={(event) => setForm((current) => ({ ...current, locationLabel: event.target.value }))} placeholder="Home, Noida" /></label><Button variant="secondary" onClick={captureLocation} disabled={createRequest.isPending}><LocateFixed size={16} />{position ? `Location captured · ±${Math.round(position.accuracy)} m` : 'Capture intended work location'}</Button>{locationError && <div className="form-alert">{locationError}</div>}{createRequest.isError && <div className="form-alert">{createRequest.error.message}</div>}<Button type="submit" disabled={!position || createRequest.isPending}><Send size={16} />{createRequest.isPending ? 'Submitting…' : 'Submit for HR approval'}</Button></form></Card><Card className="wfh-request-list"><div className="section-heading"><div><span className="eyebrow">Requests</span><h2>Approval history</h2></div><CalendarDays size={20} /></div>{requests.isLoading && <LoadingState />}{requests.isError && <ErrorState error={requests.error} onRetry={requests.refetch} />}{!requests.isLoading && !requests.data?.items?.length && <EmptyState title="No WFH requests" description="Your requests and HR decisions will appear here." />}<div className="wfh-items">{requests.data?.items?.map((item) => <article className="wfh-item" key={item._id}><div><strong>{new Intl.DateTimeFormat('en-IN', { dateStyle: 'full' }).format(new Date(`${item.requestDate}T00:00:00`))}</strong><p>{item.reason}</p><span><LocateFixed size={13} />{item.locationLabel || 'Approved work location'} · ±{Math.round(item.requestedAccuracyMeters)} m captured</span>{item.reviewNote && <small>HR note: {item.reviewNote}</small>}</div><Badge tone={item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'danger' : 'warning'}>{titleCase(item.status)}</Badge></article>)}</div></Card></div></div>;
+}

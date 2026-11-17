@@ -1,0 +1,27 @@
+{
+  "name": "facetrack-pro",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c green,cyan \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "start": "npm run start --workspace server",
+    "build": "npm run build --workspace client",
+    "test": "npm run test --workspace server",
+    "check": "npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "devDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "concurrently": "^9.1.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "vite": "^8.3.8"
+  }
+}
