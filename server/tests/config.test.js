@@ -58,4 +58,23 @@ describe('environment configuration', () => {
       /RESEND_FROM_EMAIL/,
     );
   });
+
+  it('requires complete AWS face provider credentials and a 32-byte biometric key', () => {
+    expect(() => loadConfig({
+      ...validEnvironment,
+      FACE_PROVIDER: 'aws-rekognition',
+    })).toThrow(/AWS_REGION|AWS_ACCESS_KEY_ID|BIOMETRIC_KEY/);
+
+    const config = loadConfig({
+      ...validEnvironment,
+      FACE_PROVIDER: 'aws-rekognition',
+      AWS_REGION: 'ap-south-1',
+      AWS_ACCESS_KEY_ID: 'AKIA1234567890123456',
+      AWS_SECRET_ACCESS_KEY: '1234567890123456789012345678901234567890',
+      BIOMETRIC_KEY: Buffer.alloc(32, 7).toString('base64'),
+      FACE_SIMILARITY_THRESHOLD: '92',
+    });
+    expect(config.faceProvider).toBe('aws-rekognition');
+    expect(config.faceSimilarityThreshold).toBe(92);
+  });
 });

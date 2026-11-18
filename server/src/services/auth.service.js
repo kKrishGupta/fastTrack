@@ -109,7 +109,7 @@ export async function getInvitationPreview(token) {
   };
 }
 
-export async function acceptInvitation({ token, password }, config) {
+export async function acceptInvitation({ token, password, biometricConsent }, config) {
   const tokenHash = hashInvitationToken(token);
   const invitation = await EmployeeInvitation.findOne({
     tokenHash,
@@ -141,6 +141,7 @@ export async function acceptInvitation({ token, password }, config) {
   user.passwordHash = await argon2.hash(password, { type: argon2.argon2id });
   user.status = 'active';
   user.enrollmentStatus = 'authorized';
+  user.biometricConsentAt = biometricConsent ? new Date() : undefined;
   await user.save();
 
   invitation.status = 'accepted';

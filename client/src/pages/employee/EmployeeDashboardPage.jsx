@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Fingerprint, LocateFixed, MapPin, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AttendanceCalendar, minutesFor } from '../../components/attendance/AttendanceCalendar';
+import { FaceCheckModal } from '../../components/attendance/FaceCheckModal';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -42,6 +43,7 @@ function SessionRow({ item, now }) {
 export function EmployeeDashboardPage() {
   const { user } = useAuth();
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [faceCheckOpen, setFaceCheckOpen] = useState(false);
   const today = useQuery({ queryKey: ['employee', 'today'], queryFn: attendanceService.today, refetchInterval: 30_000 });
   const history = useQuery({ queryKey: ['employee', 'history'], queryFn: () => attendanceService.history({ limit: 100 }), refetchInterval: 30_000 });
   const offices = useQuery({ queryKey: ['employee', 'offices'], queryFn: attendanceService.assignedOffices });
@@ -90,7 +92,7 @@ export function EmployeeDashboardPage() {
             <Badge className="hero-status" tone={working ? 'lime' : 'dark'} dot>{working ? 'Working' : 'Not checked in'}</Badge>
             {working
               ? <Button variant="light" onClick={requestCheckout} disabled={busy}><Clock3 size={18} />{attendanceFlow.checkOut.isPending ? 'Checking out…' : 'Check out'}</Button>
-              : <Button variant="lime" onClick={() => attendanceFlow.checkIn.mutate()} disabled={busy || user?.enrollmentStatus !== 'complete' || !canCheckIn}><LocateFixed size={18} />{attendanceFlow.checkIn.isPending ? 'Verifying…' : 'Check in securely'}</Button>}
+              : <Button variant="lime" onClick={() => setFaceCheckOpen(true)} disabled={busy || user?.enrollmentStatus !== 'complete' || !canCheckIn}><LocateFixed size={18} />{attendanceFlow.checkIn.isPending ? 'Verifying…' : 'Check in securely'}</Button>}
             <Link className="button button--darkGhost button--md" to="/employee/enrollment"><Fingerprint size={18} />Face enrollment</Link>
           </div>
           {!working && schedule && <div className={`hero-message ${canCheckIn ? 'hero-message--success' : 'hero-message--policy'}`}><CalendarDays size={17} />{schedule.today.message} · {schedule.policy.checkInWindowStart}–{schedule.policy.checkInWindowEnd}</div>}
@@ -123,6 +125,7 @@ export function EmployeeDashboardPage() {
           <Card className="recent-sessions-card"><div className="section-heading"><div><span className="eyebrow">Latest records</span><h2>Recent sessions</h2></div></div><div className="history-list">{records.slice(0, 5).map((item) => <SessionRow item={item} now={now} key={item._id} />)}</div></Card>
         </div>
       </div>
+      {faceCheckOpen && <FaceCheckModal onClose={() => setFaceCheckOpen(false)} onCapture={(capture) => { setFaceCheckOpen(false); attendanceFlow.checkIn.mutate(capture); }} />}
     </div>
   );
 }

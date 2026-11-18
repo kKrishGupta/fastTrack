@@ -29,7 +29,7 @@ export function createApp(config) {
 
   app.use(helmet());
   app.use(cors(createCorsOptions(config)));
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '2mb' }));
   app.use(cookieParser());
   app.use(createOriginProtection(config));
   app.use('/api', createApiRouter(config));

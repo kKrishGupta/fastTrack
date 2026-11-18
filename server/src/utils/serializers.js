@@ -10,6 +10,7 @@ const USER_FIELDS = [
   'jobTitle',
   'status',
   'enrollmentStatus',
+  'biometricConsentAt',
   'active',
   'createdAt',
   'updatedAt',

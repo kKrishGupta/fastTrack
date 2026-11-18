@@ -29,4 +29,5 @@ export const invitationTokenParamsSchema = z.object({
 export const acceptInvitationSchema = z.object({
   token: z.string().trim().min(40).max(200).regex(/^[A-Za-z0-9_-]+$/),
   password: z.string().min(10).max(256),
+  biometricConsent: z.literal(true, { error: 'Biometric attendance consent is required' }),
 });

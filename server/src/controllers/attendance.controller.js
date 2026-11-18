@@ -1,6 +1,7 @@
 import { checkIn, checkOut, createAttendanceChallenge, getAttendanceHistory, getAttendanceReport, getLatestAttendance, verifyAttendanceFace, verifyAttendanceLocation } from '../services/attendance.service.js';
 import { getAttendancePolicy, updateAttendancePolicy } from '../services/attendance-policy.service.js';
 import { writeAudit } from '../services/audit.service.js';
+import { getFaceEvidenceImage, listFaceEvidence } from '../services/face-evidence.service.js';
 
 export function createAttendanceController(config) {
   return {
@@ -20,6 +21,23 @@ export function createAttendanceController(config) {
     today: async (req, res) => res.json({ item: await getLatestAttendance(req.user) }),
     history: async (req, res) => res.json(await getAttendanceHistory(req.user, req.validated.query)),
     report: async (req, res) => res.json(await getAttendanceReport(req.user, req.validated.query)),
+    faceEvidenceList: async (req, res) => res.json(await listFaceEvidence(req.user, req.validated.query)),
+    faceEvidence: async (req, res) => {
+      const { evidence, image } = await getFaceEvidenceImage(req.user, req.validated.params.id, config);
+      await writeAudit({
+        user: req.user,
+        action: 'face.evidence.viewed',
+        entityType: 'FaceEvidence',
+        entityId: evidence.id,
+        metadata: { employeeId: evidence.employeeId, matched: evidence.matched, capturedAt: evidence.capturedAt },
+      });
+      res.set({
+        'Cache-Control': 'no-store, private',
+        'Content-Type': evidence.mimeType,
+        'Content-Disposition': 'inline',
+      });
+      res.send(image);
+    },
     policy: async (req, res) => res.json(await getAttendancePolicy(req.user)),
     updatePolicy: async (req, res) => {
       const result = await updateAttendancePolicy(req.user, req.validated.body);

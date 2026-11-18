@@ -120,6 +120,9 @@ On macOS/Linux, use `npm` instead of `npm.cmd`.
 - `ALLOW_TEST_FACE_ADAPTER=true` enables only the clearly marked development adapter. It is rejected automatically in production.
 - Set `ALLOW_TEST_FACE_ADAPTER=false` when testing the fail-closed production behavior.
 - `ALLOW_DEMO_FACE_ADAPTER=true` explicitly enables deployed demo capture evidence. It validates guided poses and stores encrypted evidence, but it is not biometric identity recognition.
+- `FACE_PROVIDER=aws-rekognition` enables real 1:1 comparison between the encrypted enrollment reference and a fresh check-in image. Configure AWS credentials, `BIOMETRIC_KEY`, similarity threshold, and evidence retention as described in the deployment guide.
+- Invitation activation records biometric consent and sends the employee directly to required enrollment. New employees cannot access attendance or WFH routes until enrollment completes.
+- Check-in evidence is AES-256-GCM encrypted, restricted to organization HR, audit-logged when viewed, and automatically deleted after `FACE_EVIDENCE_RETENTION_DAYS`.
 - Camera and precise location require HTTPS outside `localhost`.
 - Invitation email uses `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; the sender must belong to a domain verified in Resend for production delivery.
 - Never commit `.env` or production credentials.
@@ -143,6 +146,6 @@ server/src/
 
 ## Security boundary
 
-Geofence decisions are made server-side using `distance + reportedAccuracy <= radius`. Browser location is risk evidence, not cryptographic proof. Production facial verification remains fail-closed until a licensed ONNX embedding/PAD model, encrypted template key, liveness implementation, and calibrated threshold are configured.
+Geofence decisions and face-match authorization are made server-side. AWS Rekognition provides probabilistic 1:1 comparison; a fresh guided camera frame is quality checked but is not certified presentation-attack detection. Keep a human review path, calibrate the threshold for your workforce, obtain required consent, and complete applicable biometric/privacy/employment-law assessments before production use.
 
 See [architecture](docs/architecture.md), [API](docs/api.md), [security](docs/security.md), and [local deployment](docs/deployment.md).

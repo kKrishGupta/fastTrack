@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, CalendarDays, Clock3, Download, LocateFixed, Search, Settings2, TimerReset, Users } from 'lucide-react';
+import { CalendarClock, CalendarDays, Clock3, Download, Eye, LocateFixed, Search, Settings2, ShieldCheck, TimerReset, Users } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -41,9 +41,11 @@ export function AttendancePage() {
   const [now, setNow] = useState(Date.now());
   const [policyOpen, setPolicyOpen] = useState(false);
   const [policyForm, setPolicyForm] = useState(DEFAULT_POLICY);
+  const [faceEvidence, setFaceEvidence] = useState(null);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
 
   const attendance = useQuery({ queryKey: ['hr', 'attendance', { limit: 100 }], queryFn: () => hrService.attendance({ limit: 100 }), refetchInterval: 30_000 });
+  const evidence = useQuery({ queryKey: ['hr', 'face-evidence'], queryFn: () => hrService.faceEvidenceList({ limit: 100 }), refetchInterval: 30_000 });
   const policy = useQuery({ queryKey: ['hr', 'attendance-policy'], queryFn: hrService.attendancePolicy });
   useEffect(() => { if (policy.data?.policy) setPolicyForm(policy.data.policy); }, [policy.data]);
   const updatePolicy = useMutation({
@@ -81,6 +83,22 @@ export function AttendancePage() {
       standardWorkMinutes: Number(policyForm.standardWorkMinutes),
       overtimeAfterMinutes: Number(policyForm.overtimeAfterMinutes),
     });
+  };
+
+  const closeFaceEvidence = () => {
+    if (faceEvidence?.url) URL.revokeObjectURL(faceEvidence.url);
+    setFaceEvidence(null);
+  };
+
+  const openFaceEvidence = async (item) => {
+    closeFaceEvidence();
+    setFaceEvidence({ item, loading: true, url: '', error: '' });
+    try {
+      const blob = await hrService.faceEvidence(item._id);
+      setFaceEvidence({ item, loading: false, url: URL.createObjectURL(blob), error: '' });
+    } catch (error) {
+      setFaceEvidence({ item, loading: false, url: '', error: error.message });
+    }
   };
 
   const exportCsv = () => {
@@ -127,6 +145,30 @@ export function AttendancePage() {
         {!attendance.isLoading && !attendance.isError && !filtered.length && <EmptyState title="No attendance records" description={search || date ? 'No records match these filters.' : 'Verified check-ins will appear here.'} />}
         {!!filtered.length && <div className="table-wrap"><table className="data-table attendance-data-table"><thead><tr><th>Employee</th><th>Verified location</th><th>Check in</th><th>Check out</th><th>Total time</th><th>Regular / overtime</th><th>State</th></tr></thead><tbody>{filtered.map((item) => <tr key={item._id}><td><strong className="cell-primary">{item.employeeId?.name || 'Employee'}</strong><span className="cell-secondary">{item.employeeId?.employeeCode || '—'} · {item.attendanceDate}</span></td><td><strong className="cell-primary">{item.workMode === 'WFH' ? 'Approved WFH location' : item.officeId?.name || '—'}</strong><span className="cell-secondary">{Number.isFinite(item.locationVerification?.distanceMeters) ? `${Math.round(item.locationVerification.distanceMeters)} m from center` : 'Legacy record'}{Number.isFinite(item.locationVerification?.accuracyMeters) ? ` · ±${Math.round(item.locationVerification.accuracyMeters)} m GPS` : ''}</span></td><td><strong className="cell-primary">{formatDateTime(item.checkInAt)}</strong><span className="cell-secondary">Server timestamp</span></td><td><strong className="cell-primary">{formatDateTime(item.checkOutAt)}</strong><span className="cell-secondary">{item.earlyExitMinutes ? `${formatDuration(item.earlyExitMinutes)} before plan` : item.checkOutAt ? 'Session completed' : 'Awaiting checkout'}</span></td><td><strong className="working-time"><TimerReset size={15} />{formatDuration(minutesFor(item, now))}</strong><span className="cell-secondary">{item.sessionStatus === 'working' ? 'Updating live' : 'Final duration'}</span></td><td><strong className="cell-primary">{formatDuration(item.regularMinutes ?? (item.sessionStatus === 'working' ? minutesFor(item, now) : item.workedMinutes))}</strong><span className="cell-secondary">{item.overtimeMinutes ? `+ ${formatDuration(item.overtimeMinutes)} overtime` : 'No overtime'}</span></td><td><Badge tone={timingTone(item)} dot>{item.workMode === 'WFH' ? 'WFH · ' : ''}{titleCase(item.sessionStatus === 'working' ? 'working' : item.timingStatus || 'completed')}</Badge></td></tr>)}</tbody></table></div>}
       </Card>
+
+      <Card className="face-evidence-gallery">
+        <div className="section-heading"><div><span className="eyebrow">Identity audit</span><h2>Daily face verification</h2><p>Encrypted check-in images expire automatically and every HR view is audit logged.</p></div><ShieldCheck size={21} /></div>
+        <div className="face-evidence-list">
+          {evidence.data?.items?.map((item) => (
+            <article key={item._id}>
+              <div><strong>{item.employeeId?.name || 'Employee'}</strong><span>{formatDateTime(item.capturedAt)} · retained until {formatDateTime(item.expiresAt)}</span></div>
+              <Badge tone={item.matched ? 'success' : 'danger'}>{item.matched ? `${item.similarity.toFixed(1)}% match` : `${item.similarity.toFixed(1)}% mismatch`}</Badge>
+              <Button size="sm" variant="secondary" onClick={() => openFaceEvidence(item)}><Eye size={14} />View evidence</Button>
+            </article>
+          ))}
+          {!evidence.isLoading && !evidence.data?.items?.length && <p className="cell-secondary">New AWS verification attempts will appear here. Existing demo records do not contain retained images.</p>}
+        </div>
+      </Card>
+
+      {faceEvidence && (
+        <Modal title="Check-in face evidence" description="Restricted biometric evidence. This access is recorded in the organization audit log." onClose={closeFaceEvidence} className="face-evidence-modal">
+          {faceEvidence.loading && <LoadingState rows={3} />}
+          {faceEvidence.error && <div className="form-alert">{faceEvidence.error}</div>}
+          {faceEvidence.url && <img src={faceEvidence.url} alt={`Check-in evidence for ${faceEvidence.item.employeeId?.name || 'employee'}`} />}
+          <div className="face-evidence-meta"><span>Employee</span><strong>{faceEvidence.item.employeeId?.name}</strong><span>Captured</span><strong>{formatDateTime(faceEvidence.item.capturedAt)}</strong><span>Decision</span><strong>{faceEvidence.item.matched ? 'Matched' : 'Mismatch'}</strong><span>Similarity</span><strong>{Number.isFinite(faceEvidence.item.similarity) ? `${faceEvidence.item.similarity.toFixed(1)}%` : 'Unavailable'}</strong></div>
+          <div className="modal-actions"><Button variant="secondary" onClick={closeFaceEvidence}>Close</Button></div>
+        </Modal>
+      )}
 
       {policyOpen && (
         <Modal title="Attendance policy" description={`Applied in ${policy.data?.timezone || 'organization'} time and snapshotted on every check-in.`} onClose={() => setPolicyOpen(false)} className="attendance-policy-modal">

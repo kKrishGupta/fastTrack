@@ -29,6 +29,8 @@ export function createHrRouter({ config, authenticate }) {
   router.get('/attendance-policy', asyncHandler(attendance.policy));
   router.put('/attendance-policy', validate(attendancePolicySchema), asyncHandler(attendance.updatePolicy));
   router.get('/attendance', validate(attendanceReportQuerySchema, 'query'), asyncHandler(attendance.report));
+  router.get('/face-evidence', validate(attendanceReportQuerySchema.pick({ page: true, limit: true }), 'query'), asyncHandler(attendance.faceEvidenceList));
+  router.get('/face-evidence/:id', validate(idParamsSchema, 'params'), asyncHandler(attendance.faceEvidence));
   router.get('/wfh-requests', validate(wfhQuerySchema, 'query'), asyncHandler(wfh.organizationList));
   router.patch('/wfh-requests/:id', validate(wfhIdParamsSchema, 'params'), validate(reviewWfhRequestSchema), asyncHandler(wfh.review));
   return router;

@@ -14,6 +14,7 @@ import { EnrollmentPage } from '../pages/employee/EnrollmentPage';
 import { WfhRequestsPage } from '../pages/employee/WfhRequestsPage';
 import { WfhApprovalsPage } from '../pages/hr/WfhApprovalsPage';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
+import { EnrollmentRequiredRoute } from '../routes/EnrollmentRequiredRoute';
 
 export function App() {
   return (
@@ -38,9 +39,11 @@ export function App() {
       </Route>
       <Route element={<ProtectedRoute role="Employee" />}>
         <Route path="/employee" element={<EmployeeLayout />}>
-          <Route index element={<EmployeeDashboardPage />} />
           <Route path="enrollment" element={<EnrollmentPage />} />
-          <Route path="wfh-requests" element={<WfhRequestsPage />} />
+          <Route element={<EnrollmentRequiredRoute />}>
+            <Route index element={<EmployeeDashboardPage />} />
+            <Route path="wfh-requests" element={<WfhRequestsPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="/" element={<Navigate to="/organization/login" replace />} />

@@ -1,6 +1,8 @@
 import {
   Attendance,
   AttendanceChallenge,
+  FaceEvidence,
+  FaceProfile,
   Office,
   OfficeAssignment,
   Organization,
@@ -11,6 +13,8 @@ import { ApiError } from '../utils/api-error.js';
 import { localDateKey } from '../utils/time.js';
 import { assertCheckInAllowed, calculateAttendanceSummary, normalizeAttendancePolicy } from './attendance-policy.service.js';
 import { assignmentIsValid, evaluateGeofence } from './geofence.service.js';
+import { decryptBuffer, encryptBuffer, imageFromDataUrl } from './biometric-crypto.service.js';
+import { compareFaceImages } from './face-provider.service.js';
 
 const CHALLENGE_STATES = Object.freeze({
   CREATED: 'created',
@@ -198,6 +202,95 @@ export async function verifyAttendanceFace(user, data, config) {
   });
   if (!challenge) throw invalidChallenge('A fresh location-approved challenge is required');
 
+  if (config.faceProvider === 'aws-rekognition') {
+    if (!data.evidence.frame) {
+      throw new ApiError(400, 'FACE_IMAGE_REQUIRED', 'Capture a fresh face image to continue');
+    }
+    const profile = await FaceProfile.findOne({
+      ...organizationFilter(user),
+      employeeId: user.id,
+      status: 'active',
+      active: true,
+      provider: 'aws-rekognition',
+    }).select('+referenceImageEncrypted +referenceImageIv +referenceImageAuthTag');
+    if (!profile?.referenceImageEncrypted) {
+      throw new ApiError(409, 'FACE_REENROLLMENT_REQUIRED', 'Complete face enrollment again before checking in');
+    }
+
+    const { bytes: liveImage, mimeType } = imageFromDataUrl(data.evidence.frame);
+    const referenceImage = decryptBuffer({
+      encryptedData: profile.referenceImageEncrypted,
+      iv: profile.referenceImageIv,
+      authTag: profile.referenceImageAuthTag,
+    }, config);
+    const comparison = await compareFaceImages(referenceImage, liveImage, config);
+    const encryptedEvidence = encryptBuffer(liveImage, config);
+    const event = await VerificationEvent.create({
+      ...organizationFilter(user),
+      employeeId: user.id,
+      challengeId: challenge.id,
+      type: 'face',
+      outcome: comparison.matched ? 'passed' : 'failed',
+      reason: comparison.matched ? 'FACE_MATCH' : 'FACE_MISMATCH',
+      risk: comparison.matched ? 'standard' : 'review',
+      metadata: {
+        provider: comparison.provider,
+        similarity: comparison.similarity,
+        threshold: comparison.threshold,
+        quality: data.evidence.quality,
+      },
+    });
+    const evidence = await FaceEvidence.create({
+      ...organizationFilter(user),
+      employeeId: user.id,
+      challengeId: challenge.id,
+      verificationEventId: event.id,
+      encryptedImage: encryptedEvidence.encryptedData,
+      iv: encryptedEvidence.iv,
+      authTag: encryptedEvidence.authTag,
+      mimeType,
+      provider: comparison.provider,
+      matched: comparison.matched,
+      similarity: comparison.similarity,
+      threshold: comparison.threshold,
+      expiresAt: new Date(Date.now() + config.faceEvidenceRetentionDays * 24 * 60 * 60 * 1000),
+    });
+    const nextStatus = comparison.matched ? CHALLENGE_STATES.FACE_VERIFIED : CHALLENGE_STATES.FAILED;
+    const updated = await AttendanceChallenge.findOneAndUpdate(
+      { _id: challenge.id, status: CHALLENGE_STATES.LOCATION_VERIFIED },
+      {
+        $set: {
+          status: nextStatus,
+          faceEvidence: {
+            verificationEventId: event.id,
+            evidenceId: evidence.id,
+            provider: comparison.provider,
+            similarity: comparison.similarity,
+            threshold: comparison.threshold,
+            verifiedAt: new Date(),
+          },
+        },
+      },
+      { new: true },
+    );
+    if (!updated) throw invalidChallenge();
+    if (!comparison.matched) {
+      throw new ApiError(403, 'FACE_MISMATCH', 'Face verification did not match the enrolled employee', {
+        similarity: comparison.similarity,
+        threshold: comparison.threshold,
+        evidenceId: evidence.id,
+      });
+    }
+    return {
+      verified: true,
+      verificationEventId: event.id,
+      evidenceId: evidence.id,
+      adapter: comparison.provider,
+      similarity: comparison.similarity,
+      threshold: comparison.threshold,
+    };
+  }
+
   const developmentEvidence = data.evidence.adapter === 'development-test'
     && data.evidence.challengeResponse === 'development-only';
   const browserEvidence = data.evidence.adapter === 'browser-live'
@@ -277,6 +370,13 @@ export async function checkIn(user, challengeId) {
         distanceMeters: challenge.locationEvidence?.distance,
         accuracyMeters: challenge.locationEvidence?.accuracy,
         verifiedAt: challenge.locationEvidence?.verifiedAt,
+      },
+      faceVerification: {
+        evidenceId: challenge.faceEvidence?.evidenceId,
+        provider: challenge.faceEvidence?.provider,
+        similarity: challenge.faceEvidence?.similarity,
+        threshold: challenge.faceEvidence?.threshold,
+        verifiedAt: challenge.faceEvidence?.verifiedAt,
       },
     });
   } catch (error) {

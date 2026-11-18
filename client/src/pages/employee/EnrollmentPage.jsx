@@ -135,7 +135,7 @@ export function EnrollmentPage() {
 
   return (
     <div className="enrollment-page page-enter">
-      <div className="enrollment-topbar"><Link className="button button--secondary button--md" to="/employee"><ArrowLeft size={17} />Dashboard</Link><Badge tone={adapter === 'demo-capture-evidence' ? 'warning' : 'success'}><ShieldCheck size={14} />{adapter === 'demo-capture-evidence' ? 'Demo evidence mode' : 'Encrypted capture workflow'}</Badge></div>
+      <div className="enrollment-topbar"><Link className="button button--secondary button--md" to="/employee"><ArrowLeft size={17} />Dashboard</Link><Badge tone={adapter === 'demo-capture-evidence' ? 'warning' : 'success'}><ShieldCheck size={14} />{adapter === 'aws-rekognition' ? 'AWS identity verification' : adapter === 'demo-capture-evidence' ? 'Demo evidence mode' : 'Encrypted capture workflow'}</Badge></div>
       <header className="enrollment-heading"><p className="eyebrow">Guided enrollment</p><h1>Five angles. One secure profile.</h1><p>Each angle is accepted only after one clear, centered face holds the required pose.</p></header>
       <div className="enrollment-grid">
         <section className="camera-stage">
@@ -162,7 +162,11 @@ export function EnrollmentPage() {
             {!allCaptured && <Button variant="lime" onClick={capture} disabled={!stream || !analysis.stable || busy || Boolean(modelError)}>{busy && <LoaderCircle className="spin" size={16} />}{autoCountdown ? `Auto capture in ${autoCountdown}` : 'Hold pose to auto capture'}</Button>}
             {allCaptured && !finished && <Button variant="lime" onClick={completeEnrollment} disabled={busy}>{busy && <LoaderCircle className="spin" size={16} />}Complete enrollment</Button>}
           </div>
-          <p className="pose-note">{adapter === 'demo-capture-evidence' ? 'Demo mode validates pose and image quality, then stores encrypted capture evidence. It is not biometric identity recognition.' : 'Development mode stores encrypted capture evidence but is not identity recognition. Configure a maintained server-side embedding provider before using facial identity verification in production.'}</p>
+          <p className="pose-note">{adapter === 'aws-rekognition'
+            ? 'Your encrypted front reference is used for one-to-one comparison during daily check-in. Guided capture is not certified liveness detection.'
+            : adapter === 'demo-capture-evidence'
+              ? 'Demo mode validates pose and image quality, then stores encrypted capture evidence. It is not biometric identity recognition.'
+              : 'Face enrollment is unavailable until a production identity provider or the non-identifying demo adapter is configured.'}</p>
         </aside>
       </div>
     </div>

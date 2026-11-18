@@ -2,11 +2,14 @@ import crypto from 'node:crypto';
 import { EnrollmentSession, FaceProfile, User } from '../models.js';
 import { ApiError } from '../utils/api-error.js';
 import { writeAudit } from './audit.service.js';
+import { encryptBuffer, encryptJson, imageFromDataUrl } from './biometric-crypto.service.js';
+import { validateFaceImage } from './face-provider.service.js';
 
 const POSES = ['Front', 'Left', 'Right', 'Up', 'Down'];
 const SESSION_MINUTES = 15;
 
 export function resolveFaceAdapter(config) {
+  if (config.faceProvider === 'aws-rekognition') return 'aws-rekognition';
   if (!config.isProduction && config.allowTestFaceAdapter) return 'development-test-only';
   if (config.allowDemoFaceAdapter) return 'demo-capture-evidence';
   throw new ApiError(
@@ -16,18 +19,6 @@ export function resolveFaceAdapter(config) {
   );
 }
 
-function encryptEvidenceTemplate(value, config) {
-  const key = crypto.scryptSync(config.jwtSecret, 'facetrack-development-biometric-key', 32);
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(value), 'utf8'), cipher.final()]);
-  return {
-    encryptedTemplate: encrypted.toString('base64'),
-    iv: iv.toString('base64'),
-    authTag: cipher.getAuthTag().toString('base64'),
-  };
-}
-
 async function getActiveSession(user, sessionId) {
   const session = await EnrollmentSession.findOne({
     _id: sessionId,
@@ -35,7 +26,7 @@ async function getActiveSession(user, sessionId) {
     employeeId: user.id,
     status: 'active',
     expiresAt: { $gt: new Date() },
-  });
+  }).select('+captures.encryptedFrame +captures.frameIv +captures.frameAuthTag');
   if (!session) throw new ApiError(404, 'ENROLLMENT_SESSION_INVALID', 'Enrollment session is missing or expired');
   return session;
 }
@@ -55,17 +46,28 @@ export async function startEnrollment(user, config) {
 }
 
 export async function saveEnrollmentCapture(user, payload, config) {
-  resolveFaceAdapter(config);
+  const adapter = resolveFaceAdapter(config);
   const session = await getActiveSession(user, payload.sessionId);
   const expectedPose = POSES[session.captures.length];
   if (payload.pose !== expectedPose) {
     throw new ApiError(409, 'POSE_SEQUENCE_INVALID', `Capture ${expectedPose} before ${payload.pose}`);
   }
-  const frameBytes = Buffer.from(payload.frame.slice(payload.frame.indexOf(',') + 1), 'base64');
-  if (frameBytes.length < 8_000) throw new ApiError(400, 'FRAME_INVALID', 'The captured camera frame is too small');
+  const { bytes: frameBytes, mimeType } = imageFromDataUrl(payload.frame);
+  if (adapter === 'aws-rekognition' && payload.pose === 'Front') {
+    await validateFaceImage(frameBytes, config);
+  }
+  const referenceImage = adapter === 'aws-rekognition' && payload.pose === 'Front'
+    ? encryptBuffer(frameBytes, config)
+    : null;
   session.captures.push({
     pose: payload.pose,
     frameHash: crypto.createHash('sha256').update(frameBytes).digest('hex'),
+    ...(referenceImage && {
+      encryptedFrame: referenceImage.encryptedData,
+      frameIv: referenceImage.iv,
+      frameAuthTag: referenceImage.authTag,
+      frameMimeType: mimeType,
+    }),
     quality: payload.quality,
   });
   await session.save();
@@ -78,11 +80,15 @@ export async function completeEnrollment(user, sessionId, config) {
   if (session.captures.length !== POSES.length || session.captures.some((item, index) => item.pose !== POSES[index])) {
     throw new ApiError(409, 'ENROLLMENT_INCOMPLETE', 'All five validated angles must be captured first');
   }
-  const encrypted = encryptEvidenceTemplate({
+  const encrypted = encryptJson({
     version: 1,
     adapter,
     captures: session.captures.map(({ pose, frameHash, quality }) => ({ pose, frameHash, quality })),
   }, config);
+  const frontCapture = session.captures.find((capture) => capture.pose === 'Front');
+  if (adapter === 'aws-rekognition' && !frontCapture?.encryptedFrame) {
+    throw new ApiError(409, 'REFERENCE_FACE_MISSING', 'Repeat enrollment to create a secure reference face');
+  }
   const profile = await FaceProfile.findOneAndUpdate(
     { organizationId: user.organizationId, employeeId: user.id },
     {
@@ -91,6 +97,13 @@ export async function completeEnrollment(user, sessionId, config) {
       employeeId: user.id,
       modelId: adapter,
       modelVersion: '1',
+      provider: adapter,
+      ...(frontCapture?.encryptedFrame && {
+        referenceImageEncrypted: frontCapture.encryptedFrame,
+        referenceImageIv: frontCapture.frameIv,
+        referenceImageAuthTag: frontCapture.frameAuthTag,
+        referenceMimeType: frontCapture.frameMimeType,
+      }),
       status: 'active',
       active: true,
     },

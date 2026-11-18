@@ -11,7 +11,7 @@ import { formatDateTime } from '../../utils/formatters';
 export function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
-  const [form, setForm] = useState({ password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ password: '', confirmPassword: '', biometricConsent: false });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -33,9 +33,9 @@ export function AcceptInvitePage() {
     }
     setSubmitting(true);
     try {
-      const user = await authService.acceptInvitation({ token, password: form.password });
+      const user = await authService.acceptInvitation({ token, password: form.password, biometricConsent: form.biometricConsent });
       setUser(user);
-      navigate('/employee', { replace: true });
+      navigate(user.enrollmentStatus === 'complete' ? '/employee' : '/employee/enrollment', { replace: true });
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -94,7 +94,9 @@ export function AcceptInvitePage() {
           <input required minLength={10} type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Repeat password" />
         </label>
 
-        <Button className="login-submit" type="submit" disabled={submitting || !invitation.data}>
+        <label className="policy-switch"><input required type="checkbox" checked={form.biometricConsent} onChange={(event) => setForm((current) => ({ ...current, biometricConsent: event.target.checked }))} /><span><strong>Biometric attendance consent</strong><small>I agree to enroll my face and submit a fresh encrypted check-in image. Check-in evidence is visible only to authorized HR and expires automatically.</small></span></label>
+
+        <Button className="login-submit" type="submit" disabled={submitting || !invitation.data || !form.biometricConsent}>
           {submitting ? 'Activating account…' : 'Activate employee account'}
           {!submitting && <ArrowRight size={18} />}
         </Button>

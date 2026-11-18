@@ -14,4 +14,6 @@ export const hrService = {
   attendancePolicy: () => api.get('/hr/attendance-policy').then(({ data }) => data),
   updateAttendancePolicy: (payload) => api.put('/hr/attendance-policy', payload).then(({ data }) => data),
   attendance: (params = {}) => api.get('/hr/attendance', { params }).then(({ data }) => data),
+  faceEvidence: (evidenceId) => api.get(`/hr/face-evidence/${evidenceId}`, { responseType: 'blob' }).then(({ data }) => data),
+  faceEvidenceList: (params = {}) => api.get('/hr/face-evidence', { params }).then(({ data }) => data),
 };

@@ -7,6 +7,7 @@ import {
   EmployeeInvitation,
   EnrollmentSession,
   FaceProfile,
+  FaceEvidence,
   OfficeAssignment,
   Organization,
   User,
@@ -125,6 +126,7 @@ export async function deleteEmployee(user, employeeId) {
       await OfficeAssignment.deleteMany(filter, { session });
       await WorkFromHomeRequest.deleteMany(filter, { session });
       await FaceProfile.deleteMany(filter, { session });
+      await FaceEvidence.deleteMany(filter, { session });
       await EnrollmentSession.deleteMany(filter, { session });
       await AttendanceChallenge.deleteMany(filter, { session });
       await VerificationEvent.deleteMany(filter, { session });

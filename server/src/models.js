@@ -74,6 +74,7 @@ const userSchema = new Schema(
       enum: ['not_started', 'authorized', 'complete', 'disabled'],
       default: 'not_started',
     },
+    biometricConsentAt: Date,
   },
   schemaOptions,
 );
@@ -158,6 +159,11 @@ const faceProfileSchema = new Schema(
     authTag: { type: String, select: false },
     modelId: String,
     modelVersion: String,
+    provider: { type: String, default: 'evidence-only' },
+    referenceImageEncrypted: { type: String, select: false },
+    referenceImageIv: { type: String, select: false },
+    referenceImageAuthTag: { type: String, select: false },
+    referenceMimeType: { type: String, enum: ['image/jpeg'] },
     status: { type: String, enum: ['active', 'revoked'], default: 'active' },
   },
   schemaOptions,
@@ -174,6 +180,10 @@ const enrollmentSessionSchema = new Schema(
       _id: false,
       pose: { type: String, enum: ['Front', 'Left', 'Right', 'Up', 'Down'], required: true },
       frameHash: { type: String, required: true },
+      encryptedFrame: { type: String, select: false },
+      frameIv: { type: String, select: false },
+      frameAuthTag: { type: String, select: false },
+      frameMimeType: { type: String, enum: ['image/jpeg'] },
       quality: {
         brightness: Number,
         sharpness: Number,
@@ -211,6 +221,10 @@ const attendanceChallengeSchema = new Schema(
     },
     faceEvidence: {
       verificationEventId: { type: Schema.Types.ObjectId, ref: 'VerificationEvent' },
+      evidenceId: { type: Schema.Types.ObjectId, ref: 'FaceEvidence' },
+      provider: String,
+      similarity: Number,
+      threshold: Number,
       verifiedAt: Date,
     },
   },
@@ -228,10 +242,33 @@ const verificationEventSchema = new Schema(
     outcome: { type: String, enum: ['passed', 'failed'], required: true },
     reason: String,
     risk: { type: String, default: 'standard' },
+    metadata: Schema.Types.Mixed,
   },
   schemaOptions,
 );
 verificationEventSchema.index({ organizationId: 1, employeeId: 1, createdAt: -1 });
+
+const faceEvidenceSchema = new Schema(
+  {
+    ...organizationOwnedFields,
+    employeeId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    challengeId: { type: Schema.Types.ObjectId, ref: 'AttendanceChallenge', required: true },
+    verificationEventId: { type: Schema.Types.ObjectId, ref: 'VerificationEvent' },
+    encryptedImage: { type: String, required: true, select: false },
+    iv: { type: String, required: true, select: false },
+    authTag: { type: String, required: true, select: false },
+    mimeType: { type: String, enum: ['image/jpeg'], required: true },
+    provider: { type: String, required: true },
+    matched: { type: Boolean, required: true },
+    similarity: { type: Number, min: 0, max: 100 },
+    threshold: { type: Number, min: 0, max: 100 },
+    capturedAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, required: true },
+  },
+  schemaOptions,
+);
+faceEvidenceSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+faceEvidenceSchema.index({ organizationId: 1, employeeId: 1, capturedAt: -1 });
 
 const attendanceSchema = new Schema(
   {
@@ -250,6 +287,13 @@ const attendanceSchema = new Schema(
     locationVerification: {
       distanceMeters: { type: Number, min: 0 },
       accuracyMeters: { type: Number, min: 0 },
+      verifiedAt: Date,
+    },
+    faceVerification: {
+      evidenceId: { type: Schema.Types.ObjectId, ref: 'FaceEvidence' },
+      provider: String,
+      similarity: Number,
+      threshold: Number,
       verifiedAt: Date,
     },
     workedMinutes: { type: Number, min: 0 },
@@ -326,6 +370,7 @@ export const FaceProfile = model('FaceProfile', faceProfileSchema);
 export const EnrollmentSession = model('EnrollmentSession', enrollmentSessionSchema);
 export const AttendanceChallenge = model('AttendanceChallenge', attendanceChallengeSchema);
 export const VerificationEvent = model('VerificationEvent', verificationEventSchema);
+export const FaceEvidence = model('FaceEvidence', faceEvidenceSchema);
 export const Attendance = model('Attendance', attendanceSchema);
 export const AuditLog = model('AuditLog', auditLogSchema);
 export const EmployeeInvitation = model('EmployeeInvitation', employeeInvitationSchema);

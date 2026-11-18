@@ -10,7 +10,7 @@ For a future production release:
 4. Use a managed MongoDB deployment with authentication, network restrictions, backups, and monitoring.
 5. Store secrets in a secret manager, not `.env` files checked into source control.
 6. Keep `ALLOW_TEST_FACE_ADAPTER=false`.
-7. Configure a licensed ONNX face model, encrypted template storage, tested liveness controls, and a calibrated similarity threshold before enabling biometric attendance.
+7. Configure AWS Rekognition, encrypted evidence storage, a calibrated similarity threshold, and appropriate liveness/PAD controls before high-assurance biometric attendance.
 8. Select a supported production map/tile provider and follow its attribution and usage policy.
 
 Complete privacy, employment-law, biometric-processing, retention, accessibility, and human-review assessments before organizational deployment.
@@ -34,12 +34,33 @@ Configure these environment variables in the Render dashboard rather than upload
 - `TRUST_PROXY=true`
 - `ALLOW_TEST_FACE_ADAPTER=false`
 - `ALLOW_DEMO_FACE_ADAPTER=false` for real deployments. Set it to `true` only for an explicitly labelled demonstration without identity recognition.
+- `FACE_PROVIDER=aws-rekognition`
+- `AWS_REGION=ap-south-1` (or the Rekognition region selected for your organization)
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for a dedicated least-privilege IAM identity
+- `BIOMETRIC_KEY`, generated with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`
+- `FACE_SIMILARITY_THRESHOLD=90`
+- `FACE_EVIDENCE_RETENTION_DAYS=30`
 - `RESEND_API_KEY` from the Resend API Keys page when invitation email is enabled
 - `RESEND_FROM_EMAIL=attendance@your-domain.example`, using a sender on a domain verified in Resend
 
 Render supplies `PORT`; do not hardcode a production port. Every production origin must use HTTPS and must be listed exactly, without a path. If more than one frontend origin is needed, separate them with commas in `ALLOWED_ORIGINS`.
 
 Invitation email uses Resend's HTTPS API rather than SMTP. Remove the retired `GMAIL_USER` and `GMAIL_APP_PASSWORD` variables from Render. Resend's testing sender is suitable only for initial account testing; verify a domain and use an address on that domain before sending invitations to employees.
+
+The AWS IAM identity needs only these Rekognition actions for this implementation:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["rekognition:DetectFaces", "rekognition:CompareFaces"],
+    "Resource": "*"
+  }]
+}
+```
+
+After enabling AWS mode, existing demo enrollments must be completed once again so the server can create an encrypted reference image. Keep `ALLOW_TEST_FACE_ADAPTER=false` and `ALLOW_DEMO_FACE_ADAPTER=false` in the real production configuration. MongoDB TTL cleanup removes check-in evidence after the configured retention period; TTL cleanup is asynchronous and may occur shortly after the expiry timestamp.
 
 Deploy the Vite client separately as a Render **Static Site**:
 

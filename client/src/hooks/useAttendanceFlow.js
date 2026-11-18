@@ -20,7 +20,7 @@ export function useAttendanceFlow() {
   const queryClient = useQueryClient();
   const refreshAttendance = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['employee', 'today'] }), queryClient.invalidateQueries({ queryKey: ['employee', 'history'] })]);
   const checkIn = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (faceCapture = {}) => {
       setError(''); setProgress('Creating a secure attendance challenge…');
       const challenge = await attendanceService.createChallenge();
       let officeId;
@@ -37,7 +37,7 @@ export function useAttendanceFlow() {
       setProgress(challenge.workMode === 'WFH' ? 'Verifying approved WFH boundary…' : 'Verifying office geofence…');
       await attendanceService.verifyLocation({ challengeId: challenge.id, ...(officeId && { officeId }), ...(challenge.wfhRequestId && { wfhRequestId: challenge.wfhRequestId }), position: { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, timestamp: position.timestamp } });
       setProgress('Verifying your face…');
-      await attendanceService.verifyFace({ challengeId: challenge.id, evidence: { adapter: 'browser-live', challengeResponse: 'completed' } });
+      await attendanceService.verifyFace({ challengeId: challenge.id, evidence: { adapter: 'browser-live', challengeResponse: 'completed', ...faceCapture } });
       setProgress(`Starting your ${challenge.workMode === 'WFH' ? 'work-from-home' : 'office'} session…`);
       return attendanceService.checkIn(challenge.id);
     },

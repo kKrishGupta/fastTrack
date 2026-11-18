@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { resolveFaceAdapter } from '../src/services/enrollment.service.js';
 
 describe('face enrollment adapter selection', () => {
+  it('prefers the configured production identity provider', () => {
+    expect(resolveFaceAdapter({ faceProvider: 'aws-rekognition', isProduction: true })).toBe('aws-rekognition');
+  });
   it('uses the test adapter only outside production', () => {
     expect(resolveFaceAdapter({ isProduction: false, allowTestFaceAdapter: true })).toBe('development-test-only');
     expect(() => resolveFaceAdapter({ isProduction: true, allowTestFaceAdapter: true })).toThrow(/disabled/i);

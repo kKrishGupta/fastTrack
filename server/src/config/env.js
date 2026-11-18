@@ -35,6 +35,13 @@ const environmentSchema = z
     ALLOW_TEST_FACE_ADAPTER: booleanFromString.default(false),
     ALLOW_DEMO_FACE_ADAPTER: booleanFromString.default(false),
     DEV_LOCATION_ACCURACY_MAX: z.coerce.number().int().min(80).max(500).default(150),
+    FACE_PROVIDER: z.enum(['none', 'aws-rekognition']).default('none'),
+    AWS_REGION: z.string().trim().min(3).optional(),
+    AWS_ACCESS_KEY_ID: z.string().trim().min(16).optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().trim().min(30).optional(),
+    FACE_SIMILARITY_THRESHOLD: z.coerce.number().min(70).max(100).default(90),
+    FACE_EVIDENCE_RETENTION_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+    BIOMETRIC_KEY: z.string().trim().optional(),
   })
   .superRefine((value, context) => {
     const allowedOrigins = [value.CLIENT_ORIGIN, ...(value.ALLOWED_ORIGINS || [])];
@@ -58,6 +65,16 @@ const environmentSchema = z
         path: value.RESEND_API_KEY ? ['RESEND_FROM_EMAIL'] : ['RESEND_API_KEY'],
         message: 'RESEND_API_KEY and RESEND_FROM_EMAIL must be configured together',
       });
+    }
+    if (value.FACE_PROVIDER === 'aws-rekognition') {
+      for (const field of ['AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'BIOMETRIC_KEY']) {
+        if (!value[field]) {
+          context.addIssue({ code: 'custom', path: [field], message: `${field} is required for AWS face verification` });
+        }
+      }
+      if (value.BIOMETRIC_KEY && Buffer.from(value.BIOMETRIC_KEY, 'base64').length !== 32) {
+        context.addIssue({ code: 'custom', path: ['BIOMETRIC_KEY'], message: 'BIOMETRIC_KEY must be a base64-encoded 32-byte key' });
+      }
     }
   });
 
@@ -90,5 +107,12 @@ export function loadConfig(source = process.env) {
     allowTestFaceAdapter: env.ALLOW_TEST_FACE_ADAPTER,
     allowDemoFaceAdapter: env.ALLOW_DEMO_FACE_ADAPTER,
     devLocationAccuracyMax: env.DEV_LOCATION_ACCURACY_MAX,
+    faceProvider: env.FACE_PROVIDER,
+    awsRegion: env.AWS_REGION,
+    awsAccessKeyId: env.AWS_ACCESS_KEY_ID,
+    awsSecretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    faceSimilarityThreshold: env.FACE_SIMILARITY_THRESHOLD,
+    faceEvidenceRetentionDays: env.FACE_EVIDENCE_RETENTION_DAYS,
+    biometricKey: env.BIOMETRIC_KEY,
   });
 }

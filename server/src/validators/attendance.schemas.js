@@ -20,6 +20,14 @@ export const faceVerificationSchema = z.object({
   evidence: z.object({
     adapter: z.string().trim().min(1).max(80),
     challengeResponse: z.string().trim().min(1).max(200),
+    frame: z.string().max(900_000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/, 'A JPEG camera frame is required').optional(),
+    quality: z.object({
+      brightness: z.number().finite().min(0).max(255),
+      sharpness: z.number().finite().min(0).max(255),
+      yaw: z.number().finite().min(-90).max(90),
+      pitch: z.number().finite().min(-90).max(90),
+      roll: z.number().finite().min(-90).max(90),
+    }).optional(),
   }),
 });
 
