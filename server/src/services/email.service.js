@@ -10,6 +10,26 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function normalizeResendFailure(error, sender) {
+  const providerMessage = error?.message || 'Resend returned no email ID';
+  const providerCode = error?.name || error?.code || 'unknown';
+  const senderRejected = /domain.*not verified|verify.*domain|from address|sender/i.test(providerMessage);
+  return new ApiError(
+    502,
+    senderRejected ? 'RESEND_SENDER_NOT_VERIFIED' : 'INVITATION_EMAIL_FAILED',
+    senderRejected
+      ? 'Resend rejected the sender address. Use onboarding@resend.dev for account-email testing, or an address on a domain verified in Resend'
+      : 'The invitation was created, but Resend could not accept the email for delivery',
+    {
+      provider: 'Resend',
+      providerCode,
+      providerMessage,
+      statusCode: error?.statusCode,
+      sender,
+    },
+  );
+}
+
 export async function sendEmployeeInvitation({
   config,
   invitationId,
@@ -59,13 +79,10 @@ export async function sendEmployeeInvitation({
       text: `Hello ${recipientName},\n\nYou were invited to join ${organizationName} on FaceTrack Pro.\n\nActivate your employee account: ${inviteUrl}\n\nWorkspace ID: ${workspaceSlug}\nThis one-time invitation expires at ${expiresAt.toISOString()}.`,
       headers: { 'X-Entity-Ref-ID': invitationId },
     });
-    if (error || !data?.id) throw new Error(error?.message || 'Resend returned no email ID');
+    if (error || !data?.id) throw normalizeResendFailure(error, config.resendFromEmail);
     return data.id;
-  } catch {
-    throw new ApiError(
-      502,
-      'INVITATION_EMAIL_FAILED',
-      'The invitation was created, but Resend could not accept the email for delivery',
-    );
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw normalizeResendFailure(error, config.resendFromEmail);
   }
 }

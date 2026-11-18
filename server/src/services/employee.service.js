@@ -238,6 +238,9 @@ export async function inviteEmployee(user, data, config) {
   } catch (error) {
     console.warn('Employee invitation email was not delivered; manual sharing is available', {
       code: error.code ?? 'INVITATION_EMAIL_FAILED',
+      message: error.message,
+      providerMessage: error.details?.providerMessage,
+      statusCode: error.details?.statusCode,
       invitationId: invitation.id,
     });
   }
