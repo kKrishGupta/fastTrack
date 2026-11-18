@@ -11,5 +11,7 @@ export const hrService = {
   offices: () => api.get('/hr/offices').then(({ data }) => data.items),
   createOffice: (payload) => api.post('/hr/offices', payload).then(({ data }) => data.item),
   updateOffice: ({ id, ...payload }) => api.patch(`/hr/offices/${id}`, payload).then(({ data }) => data.item),
+  attendancePolicy: () => api.get('/hr/attendance-policy').then(({ data }) => data),
+  updateAttendancePolicy: (payload) => api.put('/hr/attendance-policy', payload).then(({ data }) => data),
   attendance: (params = {}) => api.get('/hr/attendance', { params }).then(({ data }) => data),
 };

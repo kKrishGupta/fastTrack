@@ -1,6 +1,29 @@
 import { z } from 'zod';
 import { objectIdSchema, paginationSchema } from './common.schemas.js';
 
+const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use 24-hour HH:mm format');
+const minutesFromTime = (value) => value.split(':').map(Number).reduce((hours, minutes) => (hours * 60) + minutes);
+
+export const attendancePolicySchema = z.object({
+  workingDays: z.array(z.number().int().min(0).max(6)).min(1).max(7).refine((days) => new Set(days).size === days.length, 'Working days must be unique'),
+  checkInWindowStart: timeSchema,
+  checkInWindowEnd: timeSchema,
+  expectedCheckOutTime: timeSchema,
+  standardWorkMinutes: z.number().int().min(1).max(1440),
+  overtimeEnabled: z.boolean(),
+  overtimeAfterMinutes: z.number().int().min(1).max(1440),
+}).superRefine((value, context) => {
+  if (minutesFromTime(value.checkInWindowStart) >= minutesFromTime(value.checkInWindowEnd)) {
+    context.addIssue({ code: 'custom', path: ['checkInWindowEnd'], message: 'Check-in window must end after it starts' });
+  }
+  if (minutesFromTime(value.expectedCheckOutTime) <= minutesFromTime(value.checkInWindowStart)) {
+    context.addIssue({ code: 'custom', path: ['expectedCheckOutTime'], message: 'Expected checkout must be after check-in starts' });
+  }
+  if (value.overtimeEnabled && value.overtimeAfterMinutes < value.standardWorkMinutes) {
+    context.addIssue({ code: 'custom', path: ['overtimeAfterMinutes'], message: 'Overtime threshold cannot be below standard working minutes' });
+  }
+});
+
 export const createDepartmentSchema = z.object({
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(500).optional(),

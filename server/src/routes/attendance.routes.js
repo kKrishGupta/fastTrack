@@ -14,6 +14,7 @@ export function createAttendanceRouter({ config, authenticate }) {
   router.post('/verify-face', validate(faceVerificationSchema), asyncHandler(controller.verifyFace));
   router.post('/check-in', validate(checkInSchema), asyncHandler(controller.checkIn));
   router.post('/check-out', asyncHandler(controller.checkOut));
+  router.get('/policy', asyncHandler(controller.policy));
   router.get('/today', asyncHandler(controller.today));
   router.get('/history', validate(historyQuerySchema, 'query'), asyncHandler(controller.history));
   return router;

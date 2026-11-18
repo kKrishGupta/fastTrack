@@ -80,6 +80,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .page-header h1 { margin: 0; font-family: 'Manrope', sans-serif; font-size: clamp(29px, 3vw, 40px); line-height: 1.05; letter-spacing: -.045em; }
 .page-header__description { max-width: 660px; margin: 10px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 .page-header__action { flex: none; }
+.page-header-actions { display: flex; align-items: center; gap: 9px; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .section-heading h2 { margin: 0; font-family: 'Manrope', sans-serif; font-size: 20px; letter-spacing: -.035em; }
 .section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
@@ -368,6 +369,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .hero-message { width: fit-content; margin-top: 17px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 10px; font-size: 12px; }
 .hero-message--success { color: #daf6bd; background: rgba(185,237,119,.09); }
 .hero-message--error { color: #ffd1ce; background: rgba(255,102,92,.1); }
+.hero-message--policy { color: #ffe2ad; background: rgba(255,185,92,.12); }
 .session-ticket { position: relative; z-index: 1; padding: 20px; border: 1px solid rgba(255,255,255,.12); border-radius: 19px; background: rgba(255,255,255,.075); backdrop-filter: blur(10px); }
 .session-ticket__label { display: block; margin-bottom: 9px; color: var(--lime); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .session-ticket > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.08); }
@@ -460,6 +462,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .pose-note { margin: 16px 0 0; color: rgba(255,255,255,.32); font-size: 9px; line-height: 1.55; }
 
 /* Attendance monitoring */
+.attendance-policy-summary { margin-bottom: 16px; display: grid; grid-template-columns: auto repeat(4,minmax(0,1fr)); align-items: center; gap: 18px; padding: 18px 20px; }
+.attendance-policy-summary__icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 13px; color: var(--forest); background: var(--soft-green); }
+.attendance-policy-summary > div { min-width: 0; display: grid; gap: 3px; }
+.attendance-policy-summary small { color: var(--muted); font-size: 9px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.attendance-policy-summary strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.attendance-policy-modal { width: min(680px,100%); }
+.working-day-picker { margin: 0; padding: 0; border: 0; }
+.working-day-picker legend { margin-bottom: 8px; color: #506059; font-size: 12px; font-weight: 800; letter-spacing: .035em; }
+.working-day-picker > div { display: grid; grid-template-columns: repeat(7,1fr); gap: 7px; }
+.working-day-picker button { min-height: 42px; border: 1px solid #dbe2dc; border-radius: 11px; color: var(--muted); background: white; cursor: pointer; font-weight: 750; }
+.working-day-picker button:hover { border-color: #8cac99; }
+.working-day-picker button.is-selected { color: var(--ink); border-color: var(--lime); background: var(--lime); box-shadow: 0 6px 16px rgba(119,177,77,.16); }
+.policy-switch { display: flex; align-items: center; gap: 11px; padding: 13px; border: 1px solid #dfe8e1; border-radius: 13px; background: #f7faf7; cursor: pointer; }
+.policy-switch input { width: 18px; height: 18px; accent-color: var(--forest); }
+.policy-switch span { display: grid; gap: 3px; }
+.policy-switch strong { font-size: 12px; }
+.policy-switch small { color: var(--muted); font-size: 10px; }
 .attendance-kpis { margin-top: 17px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 13px; }
 .attendance-kpis > div { display: grid; grid-template-columns: auto 1fr; gap: 2px 11px; padding: 16px 18px; border: 1px solid #e4ebe5; border-radius: 18px; background: white; box-shadow: 0 12px 32px rgba(19,45,33,.06); }
 .attendance-kpis svg { grid-row: 1 / 4; align-self: center; color: var(--forest); }
@@ -503,7 +522,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .date-filter { height: 43px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #dce4de; border-radius: 12px; color: var(--forest); background: white; }
 .date-filter input { border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; }
 .working-time { display: flex; align-items: center; gap: 6px; color: var(--forest); }
-.attendance-data-table { min-width: 1080px; }
+.attendance-data-table { min-width: 1280px; }
 .employee-page-header { margin: 18px 0 22px; }
 .employee-page-header h1 { margin: 5px 0 7px; font-family: 'Manrope',sans-serif; font-size: clamp(30px,4vw,46px); letter-spacing: -.05em; }
 .employee-page-header p:last-child { max-width: 720px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -521,6 +540,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 1100px) {
   .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .attendance-admin-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .attendance-policy-summary { grid-template-columns: auto repeat(2,minmax(0,1fr)); }
+  .attendance-policy-summary__icon { grid-row: span 2; }
   .employee-hero { grid-template-columns: 1fr 240px; gap: 28px; padding: 34px; }
   .enrollment-grid { grid-template-columns: 1fr 310px; }
   .camera-stage { min-height: 480px; }
@@ -549,11 +570,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 640px) {
   .page-header { align-items: stretch; flex-direction: column; }
   .page-header__action .button { width: 100%; }
+  .page-header-actions { align-items: stretch; flex-direction: column; }
   .admin-topbar { height: 68px; padding: 0 16px; }
   .admin-topbar .badge { padding: 5px 8px; font-size: 9px; }
   .admin-content { padding: 25px 16px 45px; }
   .stats-grid, .department-grid { grid-template-columns: 1fr; }
   .attendance-admin-kpis { grid-template-columns: 1fr; }
+  .attendance-policy-summary { grid-template-columns: 1fr 1fr; }
+  .attendance-policy-summary__icon { display: none; }
+  .working-day-picker > div { grid-template-columns: repeat(4,1fr); }
   .calendar-day { min-height: 42px; }
   .form-grid { grid-template-columns: 1fr; }
   .form-grid__wide { grid-column: auto; }

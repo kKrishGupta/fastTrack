@@ -1,4 +1,6 @@
 import { checkIn, checkOut, createAttendanceChallenge, getAttendanceHistory, getAttendanceReport, getLatestAttendance, verifyAttendanceFace, verifyAttendanceLocation } from '../services/attendance.service.js';
+import { getAttendancePolicy, updateAttendancePolicy } from '../services/attendance-policy.service.js';
+import { writeAudit } from '../services/audit.service.js';
 
 export function createAttendanceController(config) {
   return {
@@ -18,5 +20,17 @@ export function createAttendanceController(config) {
     today: async (req, res) => res.json({ item: await getLatestAttendance(req.user) }),
     history: async (req, res) => res.json(await getAttendanceHistory(req.user, req.validated.query)),
     report: async (req, res) => res.json(await getAttendanceReport(req.user, req.validated.query)),
+    policy: async (req, res) => res.json(await getAttendancePolicy(req.user)),
+    updatePolicy: async (req, res) => {
+      const result = await updateAttendancePolicy(req.user, req.validated.body);
+      await writeAudit({
+        user: req.user,
+        action: 'attendance.policy.updated',
+        entityType: 'Organization',
+        entityId: req.user.organizationId,
+        metadata: result.policy,
+      });
+      res.json(result);
+    },
   };
 }

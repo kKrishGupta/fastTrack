@@ -9,6 +9,7 @@ import {
 } from '../models.js';
 import { ApiError } from '../utils/api-error.js';
 import { localDateKey } from '../utils/time.js';
+import { assertCheckInAllowed, calculateAttendanceSummary, normalizeAttendancePolicy } from './attendance-policy.service.js';
 import { assignmentIsValid, evaluateGeofence } from './geofence.service.js';
 
 const CHALLENGE_STATES = Object.freeze({
@@ -41,6 +42,8 @@ export async function createAttendanceChallenge(user, config) {
   }
 
   const organization = await Organization.findById(user.organizationId).select('attendanceSettings timezone');
+  const policy = normalizeAttendancePolicy(organization?.attendanceSettings);
+  assertCheckInAllowed(policy, new Date(), organization?.timezone || 'UTC');
   const configuredMinutes = organization?.attendanceSettings?.challengeMinutes;
   const minutes = Math.min(15, Math.max(1, configuredMinutes || config.challengeMinutes));
   const attendanceDate = localDateKey(new Date(), organization?.timezone || 'UTC');
@@ -218,6 +221,12 @@ export async function verifyAttendanceFace(user, data, config) {
 }
 
 export async function checkIn(user, challengeId) {
+  const organization = await Organization.findById(user.organizationId).select('attendanceSettings timezone');
+  if (!organization) throw new ApiError(404, 'ORGANIZATION_NOT_FOUND', 'Organization not found');
+  const now = new Date();
+  const policy = normalizeAttendancePolicy(organization.attendanceSettings);
+  assertCheckInAllowed(policy, now, organization.timezone || 'UTC');
+
   const challenge = await AttendanceChallenge.findOneAndUpdate(
     {
       _id: challengeId,
@@ -231,8 +240,6 @@ export async function checkIn(user, challengeId) {
   );
   if (!challenge) throw invalidChallenge('A verified single-use challenge is required');
 
-  const organization = await Organization.findById(user.organizationId).select('timezone');
-  const now = new Date();
   try {
     return await Attendance.create({
       ...organizationFilter(user),
@@ -243,6 +250,8 @@ export async function checkIn(user, challengeId) {
       wfhRequestId: challenge.wfhRequestId,
       attendanceDate: localDateKey(now, organization?.timezone || 'UTC'),
       checkInAt: now,
+      timingStatus: 'working',
+      policySnapshot: { ...policy, timezone: organization.timezone || 'UTC' },
       verificationEventIds: [
         challenge.locationEvidence?.verificationEventId,
         challenge.faceEvidence?.verificationEventId,
@@ -274,16 +283,23 @@ export async function checkOut(user) {
   );
   if (!active) throw new ApiError(409, 'NO_ACTIVE_SESSION', 'No active work session');
 
-  const workedMinutes = Math.max(0, Math.round((now.getTime() - active.checkInAt.getTime()) / 60_000));
+  if (!active.policySnapshot?.timezone) {
+    const organization = await Organization.findById(user.organizationId).select('attendanceSettings timezone');
+    const policy = normalizeAttendancePolicy(organization?.attendanceSettings);
+    active.policySnapshot = { ...policy, timezone: organization?.timezone || 'UTC' };
+  }
+  const summary = calculateAttendanceSummary(active, now);
   return Attendance.findByIdAndUpdate(
     active.id,
-    { $set: { workedMinutes } },
+    { $set: { ...summary, policySnapshot: active.policySnapshot } },
     { new: true },
   );
 }
 
-export function getLatestAttendance(user) {
-  return Attendance.findOne({ ...organizationFilter(user), employeeId: user.id })
+export async function getLatestAttendance(user) {
+  const organization = await Organization.findById(user.organizationId).select('timezone');
+  const attendanceDate = localDateKey(new Date(), organization?.timezone || 'UTC');
+  return Attendance.findOne({ ...organizationFilter(user), employeeId: user.id, attendanceDate })
     .populate('officeId', 'name address radiusMeters')
     .sort({ checkInAt: -1 });
 }
