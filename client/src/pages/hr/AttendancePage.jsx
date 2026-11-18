@@ -34,6 +34,31 @@ function timingTone(item) {
   return 'neutral';
 }
 
+function AttendanceIdentityCell({ item, onView }) {
+  const verification = item.faceVerification;
+  if (!verification?.evidenceId) {
+    return <td><div className="attendance-identity-cell"><Badge tone="neutral">No retained image</Badge><span className="cell-secondary">Demo or legacy check-in</span></div></td>;
+  }
+  const evidence = {
+    _id: verification.evidenceId,
+    employeeId: item.employeeId,
+    capturedAt: verification.verifiedAt || item.checkInAt,
+    matched: true,
+    similarity: verification.similarity,
+    threshold: verification.threshold,
+    provider: verification.provider,
+  };
+  return (
+    <td>
+      <div className="attendance-identity-cell">
+        <Badge tone="success"><ShieldCheck size={13} />{Number.isFinite(verification.similarity) ? `${verification.similarity.toFixed(1)}% match` : 'Face matched'}</Badge>
+        <Button size="sm" variant="secondary" onClick={() => onView(evidence)}><Eye size={14} />View photo</Button>
+        <span className="cell-secondary">{verification.provider || 'Verified provider'}</span>
+      </div>
+    </td>
+  );
+}
+
 export function AttendancePage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -103,8 +128,8 @@ export function AttendancePage() {
 
   const exportCsv = () => {
     const rows = [
-      ['Employee', 'Employee ID', 'Office', 'Check in', 'Check out', 'Total minutes', 'Regular minutes', 'Overtime minutes', 'Early exit minutes', 'Timing status', 'Distance m', 'GPS accuracy m'],
-      ...filtered.map((item) => [item.employeeId?.name, item.employeeId?.employeeCode, item.officeId?.name, item.checkInAt, item.checkOutAt ?? '', minutesFor(item, now) ?? '', item.regularMinutes ?? '', item.overtimeMinutes ?? 0, item.earlyExitMinutes ?? 0, item.timingStatus || item.sessionStatus, item.locationVerification?.distanceMeters ?? '', item.locationVerification?.accuracyMeters ?? '']),
+      ['Employee', 'Employee ID', 'Office', 'Check in', 'Check out', 'Total minutes', 'Regular minutes', 'Overtime minutes', 'Early exit minutes', 'Timing status', 'Distance m', 'GPS accuracy m', 'Face provider', 'Face similarity', 'Face threshold'],
+      ...filtered.map((item) => [item.employeeId?.name, item.employeeId?.employeeCode, item.officeId?.name, item.checkInAt, item.checkOutAt ?? '', minutesFor(item, now) ?? '', item.regularMinutes ?? '', item.overtimeMinutes ?? 0, item.earlyExitMinutes ?? 0, item.timingStatus || item.sessionStatus, item.locationVerification?.distanceMeters ?? '', item.locationVerification?.accuracyMeters ?? '', item.faceVerification?.provider ?? '', item.faceVerification?.similarity ?? '', item.faceVerification?.threshold ?? '']),
     ];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
     const link = document.createElement('a');
@@ -143,11 +168,29 @@ export function AttendancePage() {
         {attendance.isLoading && <LoadingState />}
         {attendance.isError && <ErrorState error={attendance.error} onRetry={attendance.refetch} />}
         {!attendance.isLoading && !attendance.isError && !filtered.length && <EmptyState title="No attendance records" description={search || date ? 'No records match these filters.' : 'Verified check-ins will appear here.'} />}
-        {!!filtered.length && <div className="table-wrap"><table className="data-table attendance-data-table"><thead><tr><th>Employee</th><th>Verified location</th><th>Check in</th><th>Check out</th><th>Total time</th><th>Regular / overtime</th><th>State</th></tr></thead><tbody>{filtered.map((item) => <tr key={item._id}><td><strong className="cell-primary">{item.employeeId?.name || 'Employee'}</strong><span className="cell-secondary">{item.employeeId?.employeeCode || '—'} · {item.attendanceDate}</span></td><td><strong className="cell-primary">{item.workMode === 'WFH' ? 'Approved WFH location' : item.officeId?.name || '—'}</strong><span className="cell-secondary">{Number.isFinite(item.locationVerification?.distanceMeters) ? `${Math.round(item.locationVerification.distanceMeters)} m from center` : 'Legacy record'}{Number.isFinite(item.locationVerification?.accuracyMeters) ? ` · ±${Math.round(item.locationVerification.accuracyMeters)} m GPS` : ''}</span></td><td><strong className="cell-primary">{formatDateTime(item.checkInAt)}</strong><span className="cell-secondary">Server timestamp</span></td><td><strong className="cell-primary">{formatDateTime(item.checkOutAt)}</strong><span className="cell-secondary">{item.earlyExitMinutes ? `${formatDuration(item.earlyExitMinutes)} before plan` : item.checkOutAt ? 'Session completed' : 'Awaiting checkout'}</span></td><td><strong className="working-time"><TimerReset size={15} />{formatDuration(minutesFor(item, now))}</strong><span className="cell-secondary">{item.sessionStatus === 'working' ? 'Updating live' : 'Final duration'}</span></td><td><strong className="cell-primary">{formatDuration(item.regularMinutes ?? (item.sessionStatus === 'working' ? minutesFor(item, now) : item.workedMinutes))}</strong><span className="cell-secondary">{item.overtimeMinutes ? `+ ${formatDuration(item.overtimeMinutes)} overtime` : 'No overtime'}</span></td><td><Badge tone={timingTone(item)} dot>{item.workMode === 'WFH' ? 'WFH · ' : ''}{titleCase(item.sessionStatus === 'working' ? 'working' : item.timingStatus || 'completed')}</Badge></td></tr>)}</tbody></table></div>}
+        {!!filtered.length && (
+          <div className="table-wrap">
+            <table className="data-table attendance-data-table">
+              <thead><tr><th>Employee</th><th>Verified location</th><th>Identity verification</th><th>Check in</th><th>Check out</th><th>Total time</th><th>Regular / overtime</th><th>State</th></tr></thead>
+              <tbody>{filtered.map((item) => (
+                <tr key={item._id}>
+                  <td><strong className="cell-primary">{item.employeeId?.name || 'Employee'}</strong><span className="cell-secondary">{item.employeeId?.employeeCode || '—'} · {item.attendanceDate}</span></td>
+                  <td><strong className="cell-primary">{item.workMode === 'WFH' ? 'Approved WFH location' : item.officeId?.name || '—'}</strong><span className="cell-secondary">{Number.isFinite(item.locationVerification?.distanceMeters) ? `${Math.round(item.locationVerification.distanceMeters)} m from center` : 'Legacy record'}{Number.isFinite(item.locationVerification?.accuracyMeters) ? ` · ±${Math.round(item.locationVerification.accuracyMeters)} m GPS` : ''}</span></td>
+                  <AttendanceIdentityCell item={item} onView={openFaceEvidence} />
+                  <td><strong className="cell-primary">{formatDateTime(item.checkInAt)}</strong><span className="cell-secondary">Server timestamp</span></td>
+                  <td><strong className="cell-primary">{formatDateTime(item.checkOutAt)}</strong><span className="cell-secondary">{item.earlyExitMinutes ? `${formatDuration(item.earlyExitMinutes)} before plan` : item.checkOutAt ? 'Session completed' : 'Awaiting checkout'}</span></td>
+                  <td><strong className="working-time"><TimerReset size={15} />{formatDuration(minutesFor(item, now))}</strong><span className="cell-secondary">{item.sessionStatus === 'working' ? 'Updating live' : 'Final duration'}</span></td>
+                  <td><strong className="cell-primary">{formatDuration(item.regularMinutes ?? (item.sessionStatus === 'working' ? minutesFor(item, now) : item.workedMinutes))}</strong><span className="cell-secondary">{item.overtimeMinutes ? `+ ${formatDuration(item.overtimeMinutes)} overtime` : 'No overtime'}</span></td>
+                  <td><Badge tone={timingTone(item)} dot>{item.workMode === 'WFH' ? 'WFH · ' : ''}{titleCase(item.sessionStatus === 'working' ? 'working' : item.timingStatus || 'completed')}</Badge></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       <Card className="face-evidence-gallery">
-        <div className="section-heading"><div><span className="eyebrow">Identity audit</span><h2>Daily face verification</h2><p>Encrypted check-in images expire automatically and every HR view is audit logged.</p></div><ShieldCheck size={21} /></div>
+        <div className="section-heading"><div><span className="eyebrow">Identity audit</span><h2>All verification attempts</h2><p>Successful evidence is linked directly to the employee attendance row above. This list also keeps failed attempts available for review.</p></div><ShieldCheck size={21} /></div>
         <div className="face-evidence-list">
           {evidence.data?.items?.map((item) => (
             <article key={item._id}>
