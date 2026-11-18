@@ -174,6 +174,7 @@ const enrollmentSessionSchema = new Schema(
   {
     ...organizationOwnedFields,
     employeeId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    adapter: { type: String, enum: ['aws-rekognition', 'development-test-only', 'demo-capture-evidence'] },
     status: { type: String, enum: ['active', 'complete', 'expired'], default: 'active', index: true },
     expiresAt: { type: Date, required: true },
     captures: [{

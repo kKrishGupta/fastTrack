@@ -40,14 +40,19 @@ export async function startEnrollment(user, config) {
   const session = await EnrollmentSession.create({
     organizationId: user.organizationId,
     employeeId: user.id,
+    adapter,
     expiresAt: new Date(Date.now() + SESSION_MINUTES * 60_000),
   });
   return { sessionId: session.id, expiresAt: session.expiresAt, adapter };
 }
 
 export async function saveEnrollmentCapture(user, payload, config) {
-  const adapter = resolveFaceAdapter(config);
+  const configuredAdapter = resolveFaceAdapter(config);
   const session = await getActiveSession(user, payload.sessionId);
+  if (session.adapter && session.adapter !== configuredAdapter) {
+    throw new ApiError(409, 'ENROLLMENT_CONFIGURATION_CHANGED', 'Face verification configuration changed. Reset enrollment and capture again');
+  }
+  const adapter = session.adapter || configuredAdapter;
   const expectedPose = POSES[session.captures.length];
   if (payload.pose !== expectedPose) {
     throw new ApiError(409, 'POSE_SEQUENCE_INVALID', `Capture ${expectedPose} before ${payload.pose}`);
@@ -75,8 +80,12 @@ export async function saveEnrollmentCapture(user, payload, config) {
 }
 
 export async function completeEnrollment(user, sessionId, config) {
-  const adapter = resolveFaceAdapter(config);
+  const configuredAdapter = resolveFaceAdapter(config);
   const session = await getActiveSession(user, sessionId);
+  if (session.adapter && session.adapter !== configuredAdapter) {
+    throw new ApiError(409, 'ENROLLMENT_CONFIGURATION_CHANGED', 'Face verification configuration changed. Reset enrollment and capture again');
+  }
+  const adapter = session.adapter || configuredAdapter;
   if (session.captures.length !== POSES.length || session.captures.some((item, index) => item.pose !== POSES[index])) {
     throw new ApiError(409, 'ENROLLMENT_INCOMPLETE', 'All five validated angles must be captured first');
   }

@@ -28,8 +28,27 @@ function normalizeProviderError(error) {
   if (error?.name === 'InvalidParameterException') {
     return new ApiError(422, 'FACE_NOT_DETECTED', 'A single clear face could not be detected');
   }
+  if (['UnrecognizedClientException', 'InvalidSignatureException', 'ExpiredTokenException'].includes(error?.name)) {
+    console.error({ code: error?.name, message: error?.message, provider: 'aws-rekognition' });
+    return new ApiError(
+      503,
+      'FACE_PROVIDER_CREDENTIALS_INVALID',
+      'AWS face verification credentials are invalid or expired. Ask HR to update the Render AWS credentials',
+    );
+  }
+  if (error?.name === 'AccessDeniedException') {
+    console.error({ code: error?.name, message: error?.message, provider: 'aws-rekognition' });
+    return new ApiError(
+      503,
+      'FACE_PROVIDER_ACCESS_DENIED',
+      'AWS Rekognition permission is missing. Ask HR to allow DetectFaces and CompareFaces',
+    );
+  }
+  if (error?.name === 'ThrottlingException') {
+    return new ApiError(503, 'FACE_PROVIDER_BUSY', 'Face verification is busy. Wait a moment and try again');
+  }
   console.error({ code: error?.name, message: error?.message, provider: 'aws-rekognition' });
-  return new ApiError(503, 'FACE_PROVIDER_UNAVAILABLE', 'Face verification is temporarily unavailable');
+  return new ApiError(503, 'FACE_PROVIDER_UNAVAILABLE', 'AWS face verification is temporarily unavailable. Check the Render service logs');
 }
 
 export async function validateFaceImage(imageBytes, config) {

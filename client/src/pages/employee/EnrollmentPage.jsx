@@ -35,6 +35,7 @@ export function EnrollmentPage() {
   const [busy, setBusy] = useState(false);
   const [finished, setFinished] = useState(false);
   const [autoCountdown, setAutoCountdown] = useState(null);
+  const [autoCaptureBlocked, setAutoCaptureBlocked] = useState(false);
   const currentPose = poses[step]?.name ?? 'Front';
   const { analysis, captureFrame, modelError } = useFaceEnrollmentCamera({
     videoRef,
@@ -56,6 +57,7 @@ export function EnrollmentPage() {
       });
       setSessionId(enrollment.sessionId);
       setAdapter(enrollment.adapter);
+      setAutoCaptureBlocked(false);
       setStream(mediaStream);
       videoRef.current.srcObject = mediaStream;
       await videoRef.current.play();
@@ -79,8 +81,10 @@ export function EnrollmentPage() {
     setError('');
     try {
       await enrollmentService.capture({ sessionId, pose: currentPose, ...captureData });
+      setAutoCaptureBlocked(false);
       setStep((current) => Math.min(poses.length, current + 1));
     } catch (requestError) {
+      setAutoCaptureBlocked(true);
       setError(requestError.message);
     } finally {
       captureLockRef.current = false;
@@ -89,7 +93,7 @@ export function EnrollmentPage() {
   };
 
   useEffect(() => {
-    if (!analysis.stable || !stream || !sessionId || busy || finished || step >= poses.length) {
+    if (!analysis.stable || !stream || !sessionId || busy || finished || autoCaptureBlocked || step >= poses.length) {
       setAutoCountdown(null);
       return undefined;
     }
@@ -99,7 +103,7 @@ export function EnrollmentPage() {
     return () => {
       window.clearTimeout(captureTimer);
     };
-  }, [analysis.stable, busy, finished, sessionId, step, stream]);
+  }, [analysis.stable, autoCaptureBlocked, busy, finished, sessionId, step, stream]);
 
   const completeEnrollment = async () => {
     setBusy(true);
@@ -124,6 +128,7 @@ export function EnrollmentPage() {
     setStep(0);
     setFinished(false);
     setAutoCountdown(null);
+    setAutoCaptureBlocked(false);
     setError('');
   };
 
@@ -159,7 +164,7 @@ export function EnrollmentPage() {
           {analysis.metrics && stream && !allCaptured && <p className="pose-metrics">Yaw {analysis.metrics.yaw.toFixed(0)}° · Pitch {analysis.metrics.pitch.toFixed(0)}° · Light {analysis.metrics.brightness.toFixed(0)} · Focus {analysis.metrics.sharpness.toFixed(1)}</p>}
           <div className="pose-actions">
             <Button variant="secondary" onClick={reset} disabled={busy || (!stream && !step)}><RotateCcw size={16} />Reset</Button>
-            {!allCaptured && <Button variant="lime" onClick={capture} disabled={!stream || !analysis.stable || busy || Boolean(modelError)}>{busy && <LoaderCircle className="spin" size={16} />}{autoCountdown ? `Auto capture in ${autoCountdown}` : 'Hold pose to auto capture'}</Button>}
+            {!allCaptured && <Button variant="lime" onClick={capture} disabled={!stream || !analysis.stable || busy || Boolean(modelError)}>{busy && <LoaderCircle className="spin" size={16} />}{autoCountdown ? `Auto capture in ${autoCountdown}` : autoCaptureBlocked ? 'Try capture again' : 'Hold pose to auto capture'}</Button>}
             {allCaptured && !finished && <Button variant="lime" onClick={completeEnrollment} disabled={busy}>{busy && <LoaderCircle className="spin" size={16} />}Complete enrollment</Button>}
           </div>
           <p className="pose-note">{adapter === 'aws-rekognition'
