@@ -53,8 +53,9 @@ describe('employee invitation email', () => {
     sendMock.mockResolvedValue({ data: null, error: { message: 'Domain not verified' } });
 
     await expect(sendEmployeeInvitation(invitation)).rejects.toMatchObject({
-      code: 'INVITATION_EMAIL_FAILED',
+      code: 'RESEND_SENDER_NOT_VERIFIED',
       status: 502,
+      details: expect.objectContaining({ providerMessage: 'Domain not verified' }),
     });
   });
 });

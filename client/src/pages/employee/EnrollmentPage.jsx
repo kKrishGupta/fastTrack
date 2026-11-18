@@ -29,6 +29,7 @@ export function EnrollmentPage() {
   const { user, setUser } = useAuth();
   const [stream, setStream] = useState(null);
   const [sessionId, setSessionId] = useState('');
+  const [adapter, setAdapter] = useState('');
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,6 +55,7 @@ export function EnrollmentPage() {
         audio: false,
       });
       setSessionId(enrollment.sessionId);
+      setAdapter(enrollment.adapter);
       setStream(mediaStream);
       videoRef.current.srcObject = mediaStream;
       await videoRef.current.play();
@@ -118,6 +120,7 @@ export function EnrollmentPage() {
     stream?.getTracks().forEach((track) => track.stop());
     setStream(null);
     setSessionId('');
+    setAdapter('');
     setStep(0);
     setFinished(false);
     setAutoCountdown(null);
@@ -132,7 +135,7 @@ export function EnrollmentPage() {
 
   return (
     <div className="enrollment-page page-enter">
-      <div className="enrollment-topbar"><Link className="button button--secondary button--md" to="/employee"><ArrowLeft size={17} />Dashboard</Link><Badge tone="success"><ShieldCheck size={14} />Encrypted capture workflow</Badge></div>
+      <div className="enrollment-topbar"><Link className="button button--secondary button--md" to="/employee"><ArrowLeft size={17} />Dashboard</Link><Badge tone={adapter === 'demo-capture-evidence' ? 'warning' : 'success'}><ShieldCheck size={14} />{adapter === 'demo-capture-evidence' ? 'Demo evidence mode' : 'Encrypted capture workflow'}</Badge></div>
       <header className="enrollment-heading"><p className="eyebrow">Guided enrollment</p><h1>Five angles. One secure profile.</h1><p>Each angle is accepted only after one clear, centered face holds the required pose.</p></header>
       <div className="enrollment-grid">
         <section className="camera-stage">
@@ -159,7 +162,7 @@ export function EnrollmentPage() {
             {!allCaptured && <Button variant="lime" onClick={capture} disabled={!stream || !analysis.stable || busy || Boolean(modelError)}>{busy && <LoaderCircle className="spin" size={16} />}{autoCountdown ? `Auto capture in ${autoCountdown}` : 'Hold pose to auto capture'}</Button>}
             {allCaptured && !finished && <Button variant="lime" onClick={completeEnrollment} disabled={busy}>{busy && <LoaderCircle className="spin" size={16} />}Complete enrollment</Button>}
           </div>
-          <p className="pose-note">Development mode stores encrypted capture evidence but is not identity recognition. Production remains blocked until a licensed server-side embedding model is configured.</p>
+          <p className="pose-note">{adapter === 'demo-capture-evidence' ? 'Demo mode validates pose and image quality, then stores encrypted capture evidence. It is not biometric identity recognition.' : 'Development mode stores encrypted capture evidence but is not identity recognition. Configure a maintained server-side embedding provider before using facial identity verification in production.'}</p>
         </aside>
       </div>
     </div>

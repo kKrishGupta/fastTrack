@@ -34,6 +34,17 @@ describe('environment configuration', () => {
     ).toThrow(/HTTPS|development face adapter/);
   });
 
+  it('allows the explicitly labelled demo evidence adapter in production', () => {
+    const config = loadConfig({
+      ...validEnvironment,
+      NODE_ENV: 'production',
+      CLIENT_ORIGIN: 'https://app.example.com',
+      ALLOW_DEMO_FACE_ADAPTER: 'true',
+    });
+    expect(config.allowDemoFaceAdapter).toBe(true);
+    expect(config.allowTestFaceAdapter).toBe(false);
+  });
+
   it('accepts Resend settings and requires the API key and sender together', () => {
     const config = loadConfig({
       ...validEnvironment,

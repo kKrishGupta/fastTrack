@@ -33,6 +33,7 @@ const environmentSchema = z
     CHALLENGE_MINUTES: z.coerce.number().int().min(1).max(15).default(5),
     TRUST_PROXY: booleanFromString.default(false),
     ALLOW_TEST_FACE_ADAPTER: booleanFromString.default(false),
+    ALLOW_DEMO_FACE_ADAPTER: booleanFromString.default(false),
     DEV_LOCATION_ACCURACY_MAX: z.coerce.number().int().min(80).max(500).default(150),
   })
   .superRefine((value, context) => {
@@ -87,6 +88,7 @@ export function loadConfig(source = process.env) {
     challengeMinutes: env.CHALLENGE_MINUTES,
     trustProxy: env.TRUST_PROXY,
     allowTestFaceAdapter: env.ALLOW_TEST_FACE_ADAPTER,
+    allowDemoFaceAdapter: env.ALLOW_DEMO_FACE_ADAPTER,
     devLocationAccuracyMax: env.DEV_LOCATION_ACCURACY_MAX,
   });
 }

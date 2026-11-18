@@ -185,18 +185,22 @@ export async function verifyAttendanceFace(user, data, config) {
   });
   if (!challenge) throw invalidChallenge('A fresh location-approved challenge is required');
 
-  const developmentEvidence =
-    (data.evidence.adapter === 'development-test' &&
-      data.evidence.challengeResponse === 'development-only') ||
-    (data.evidence.adapter === 'browser-live' &&
-      data.evidence.challengeResponse === 'completed');
-  if (!config.allowTestFaceAdapter || config.isProduction || !developmentEvidence) {
+  const developmentEvidence = data.evidence.adapter === 'development-test'
+    && data.evidence.challengeResponse === 'development-only';
+  const browserEvidence = data.evidence.adapter === 'browser-live'
+    && data.evidence.challengeResponse === 'completed';
+  const developmentAllowed = !config.isProduction && config.allowTestFaceAdapter
+    && (developmentEvidence || browserEvidence);
+  const demoAllowed = config.allowDemoFaceAdapter && browserEvidence;
+  if (!developmentAllowed && !demoAllowed) {
     throw new ApiError(
       503,
       'FACE_MODEL_UNAVAILABLE',
-      'The production face-verification provider is not configured',
+      'Face verification is disabled. Configure a production provider, or explicitly enable demo face evidence',
     );
   }
+
+  const adapterReason = demoAllowed ? 'DEMO_CAPTURE_EVIDENCE' : 'DEVELOPMENT_ADAPTER';
 
   const event = await VerificationEvent.create({
     ...organizationFilter(user),
@@ -204,7 +208,7 @@ export async function verifyAttendanceFace(user, data, config) {
     challengeId: challenge.id,
     type: 'face',
     outcome: 'passed',
-    reason: 'DEVELOPMENT_ADAPTER',
+    reason: adapterReason,
   });
   const updated = await AttendanceChallenge.findOneAndUpdate(
     { _id: challenge.id, status: CHALLENGE_STATES.LOCATION_VERIFIED },
@@ -217,7 +221,7 @@ export async function verifyAttendanceFace(user, data, config) {
     { new: true },
   );
   if (!updated) throw invalidChallenge();
-  return { verified: true, verificationEventId: event.id };
+  return { verified: true, verificationEventId: event.id, adapter: demoAllowed ? 'demo-capture-evidence' : 'development-test-only' };
 }
 
 export async function checkIn(user, challengeId) {

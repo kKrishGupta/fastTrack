@@ -33,6 +33,7 @@ Configure these environment variables in the Render dashboard rather than upload
 - a newly generated `JWT_SECRET` containing at least 32 characters
 - `TRUST_PROXY=true`
 - `ALLOW_TEST_FACE_ADAPTER=false`
+- `ALLOW_DEMO_FACE_ADAPTER=false` for real deployments. Set it to `true` only for an explicitly labelled demonstration without identity recognition.
 - `RESEND_API_KEY` from the Resend API Keys page when invitation email is enabled
 - `RESEND_FROM_EMAIL=attendance@your-domain.example`, using a sender on a domain verified in Resend
 

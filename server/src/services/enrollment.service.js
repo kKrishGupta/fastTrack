@@ -6,13 +6,17 @@ import { writeAudit } from './audit.service.js';
 const POSES = ['Front', 'Left', 'Right', 'Up', 'Down'];
 const SESSION_MINUTES = 15;
 
-function ensureDevelopmentAdapter(config) {
-  if (!config.allowTestFaceAdapter || config.isProduction) {
-    throw new ApiError(503, 'FACE_MODEL_NOT_CONFIGURED', 'A licensed server-side face embedding model must be configured before enrollment can complete');
-  }
+export function resolveFaceAdapter(config) {
+  if (!config.isProduction && config.allowTestFaceAdapter) return 'development-test-only';
+  if (config.allowDemoFaceAdapter) return 'demo-capture-evidence';
+  throw new ApiError(
+    503,
+    'FACE_MODEL_NOT_CONFIGURED',
+    'Face enrollment is disabled. Configure a production face provider, or set ALLOW_DEMO_FACE_ADAPTER=true for a non-identifying demo',
+  );
 }
 
-function encryptDevelopmentTemplate(value, config) {
+function encryptEvidenceTemplate(value, config) {
   const key = crypto.scryptSync(config.jwtSecret, 'facetrack-development-biometric-key', 32);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
@@ -37,7 +41,7 @@ async function getActiveSession(user, sessionId) {
 }
 
 export async function startEnrollment(user, config) {
-  ensureDevelopmentAdapter(config);
+  const adapter = resolveFaceAdapter(config);
   await EnrollmentSession.updateMany(
     { organizationId: user.organizationId, employeeId: user.id, status: 'active' },
     { $set: { status: 'expired' } },
@@ -47,11 +51,11 @@ export async function startEnrollment(user, config) {
     employeeId: user.id,
     expiresAt: new Date(Date.now() + SESSION_MINUTES * 60_000),
   });
-  return { sessionId: session.id, expiresAt: session.expiresAt, adapter: 'development-test-only' };
+  return { sessionId: session.id, expiresAt: session.expiresAt, adapter };
 }
 
 export async function saveEnrollmentCapture(user, payload, config) {
-  ensureDevelopmentAdapter(config);
+  resolveFaceAdapter(config);
   const session = await getActiveSession(user, payload.sessionId);
   const expectedPose = POSES[session.captures.length];
   if (payload.pose !== expectedPose) {
@@ -69,14 +73,14 @@ export async function saveEnrollmentCapture(user, payload, config) {
 }
 
 export async function completeEnrollment(user, sessionId, config) {
-  ensureDevelopmentAdapter(config);
+  const adapter = resolveFaceAdapter(config);
   const session = await getActiveSession(user, sessionId);
   if (session.captures.length !== POSES.length || session.captures.some((item, index) => item.pose !== POSES[index])) {
     throw new ApiError(409, 'ENROLLMENT_INCOMPLETE', 'All five validated angles must be captured first');
   }
-  const encrypted = encryptDevelopmentTemplate({
+  const encrypted = encryptEvidenceTemplate({
     version: 1,
-    adapter: 'development-test-only',
+    adapter,
     captures: session.captures.map(({ pose, frameHash, quality }) => ({ pose, frameHash, quality })),
   }, config);
   const profile = await FaceProfile.findOneAndUpdate(
@@ -85,7 +89,7 @@ export async function completeEnrollment(user, sessionId, config) {
       ...encrypted,
       organizationId: user.organizationId,
       employeeId: user.id,
-      modelId: 'development-test-only',
+      modelId: adapter,
       modelVersion: '1',
       status: 'active',
       active: true,
@@ -100,7 +104,7 @@ export async function completeEnrollment(user, sessionId, config) {
     action: 'face.enrollment.completed',
     entityType: 'FaceProfile',
     entityId: profile.id,
-    metadata: { adapter: 'development-test-only', captures: POSES },
+    metadata: { adapter, captures: POSES },
   });
-  return { user: updatedUser, adapter: 'development-test-only' };
+  return { user: updatedUser, adapter };
 }

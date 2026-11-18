@@ -119,6 +119,7 @@ On macOS/Linux, use `npm` instead of `npm.cmd`.
 - `CLIENT_ORIGIN` must match the Vite origin exactly.
 - `ALLOW_TEST_FACE_ADAPTER=true` enables only the clearly marked development adapter. It is rejected automatically in production.
 - Set `ALLOW_TEST_FACE_ADAPTER=false` when testing the fail-closed production behavior.
+- `ALLOW_DEMO_FACE_ADAPTER=true` explicitly enables deployed demo capture evidence. It validates guided poses and stores encrypted evidence, but it is not biometric identity recognition.
 - Camera and precise location require HTTPS outside `localhost`.
 - Invitation email uses `RESEND_API_KEY` and `RESEND_FROM_EMAIL`; the sender must belong to a domain verified in Resend for production delivery.
 - Never commit `.env` or production credentials.
