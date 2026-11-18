@@ -28,6 +28,15 @@ function invalidChallenge(message = 'Challenge expired, reused, or invalid') {
   return new ApiError(409, 'CHALLENGE_INVALID', message);
 }
 
+export function resolveLocationAccuracyLimit(settings = {}, config = {}) {
+  const configuredAccuracy = settings.accuracyMax || 80;
+  const relaxedDemoMode = config.allowDemoFaceAdapter
+    || (!config.isProduction && config.allowTestFaceAdapter);
+  return relaxedDemoMode
+    ? Math.max(configuredAccuracy, config.devLocationAccuracyMax || 150)
+    : configuredAccuracy;
+}
+
 export async function createAttendanceChallenge(user, config) {
   if (user.enrollmentStatus !== 'complete') {
     throw new ApiError(409, 'ENROLLMENT_REQUIRED', 'Complete approved face enrollment first');
@@ -61,7 +70,14 @@ export async function createAttendanceChallenge(user, config) {
     wfhRequestId: approvedWfh?.id,
     expiresAt: new Date(Date.now() + minutes * 60_000),
   });
-  return { id: item.id, expiresAt: item.expiresAt, status: item.status, workMode: item.workMode, wfhRequestId: item.wfhRequestId };
+  return {
+    id: item.id,
+    expiresAt: item.expiresAt,
+    status: item.status,
+    workMode: item.workMode,
+    wfhRequestId: item.wfhRequestId,
+    locationAccuracyMax: resolveLocationAccuracyLimit(organization?.attendanceSettings, config),
+  };
 }
 
 export async function verifyAttendanceLocation(user, data, config = {}) {
@@ -113,10 +129,7 @@ export async function verifyAttendanceLocation(user, data, config = {}) {
   }
 
   const configuredAccuracy = organization?.attendanceSettings?.accuracyMax || 80;
-  const developmentAccuracy = config.devLocationAccuracyMax || 150;
-  const effectiveAccuracy = !config.isProduction && config.allowTestFaceAdapter
-    ? Math.max(configuredAccuracy, developmentAccuracy)
-    : configuredAccuracy;
+  const effectiveAccuracy = resolveLocationAccuracyLimit(organization?.attendanceSettings, config);
   const result = evaluateGeofence({
     position: data.position,
     office: locationTarget,

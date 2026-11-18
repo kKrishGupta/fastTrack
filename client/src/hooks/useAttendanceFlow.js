@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { attendanceService } from '../services/attendanceService';
 
-export const getCurrentPosition = () => new Promise((resolve, reject) => {
+export const getCurrentPosition = ({ targetAccuracy = 80, timeoutMs = 12_000, onSample } = {}) => new Promise((resolve, reject) => {
   if (!navigator.geolocation) return reject(new Error('Location is not supported by this browser.'));
   let bestPosition = null; let settled = false; let watchId; let timeoutId;
   const finish = (callback, value) => { if (settled) return; settled = true; window.clearTimeout(timeoutId); navigator.geolocation.clearWatch(watchId); callback(value); };
   watchId = navigator.geolocation.watchPosition((position) => {
     if (!bestPosition || position.coords.accuracy < bestPosition.coords.accuracy) bestPosition = position;
-    if (position.coords.accuracy <= 50) finish(resolve, position);
+    onSample?.(bestPosition);
+    if (position.coords.accuracy <= targetAccuracy) finish(resolve, position);
   }, (error) => { if (error.code === 1) finish(reject, error); }, { enableHighAccuracy: true, maximumAge: 0 });
-  timeoutId = window.setTimeout(() => bestPosition ? finish(resolve, bestPosition) : finish(reject, new Error('Could not get a fresh GPS location. Check location services.')), 8_000);
+  timeoutId = window.setTimeout(() => bestPosition ? finish(resolve, bestPosition) : finish(reject, new Error('Could not get a fresh GPS location. Check location services.')), timeoutMs);
 });
 
 export function useAttendanceFlow() {
@@ -29,7 +30,10 @@ export function useAttendanceFlow() {
         officeId = offices[0]._id;
       }
       setProgress(challenge.workMode === 'WFH' ? 'Requesting GPS for the approved WFH location…' : 'Requesting GPS for your assigned office…');
-      const position = await getCurrentPosition();
+      const position = await getCurrentPosition({
+        targetAccuracy: challenge.locationAccuracyMax || 80,
+        onSample: (sample) => setProgress(`Improving location accuracy… current ±${Math.round(sample.coords.accuracy)} m`),
+      });
       setProgress(challenge.workMode === 'WFH' ? 'Verifying approved WFH boundary…' : 'Verifying office geofence…');
       await attendanceService.verifyLocation({ challengeId: challenge.id, ...(officeId && { officeId }), ...(challenge.wfhRequestId && { wfhRequestId: challenge.wfhRequestId }), position: { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, timestamp: position.timestamp } });
       setProgress('Verifying your face…');
