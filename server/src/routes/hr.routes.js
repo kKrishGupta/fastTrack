@@ -23,6 +23,7 @@ export function createHrRouter({ config, authenticate }) {
   router.delete('/employees/:id/invitations', validate(idParamsSchema, 'params'), asyncHandler(employees.revokeInvitations));
   router.post('/employees/:id/face-reenrollment', validate(idParamsSchema, 'params'), asyncHandler(employees.allowFaceReenrollment));
   router.delete('/employees/:id/face-reenrollment', validate(idParamsSchema, 'params'), asyncHandler(employees.denyFaceReenrollment));
+  router.post('/employees/:id/teamlogger/provision', validate(idParamsSchema, 'params'), asyncHandler(employees.provisionTeamLogger));
   router.delete('/employees/:id', validate(idParamsSchema, 'params'), asyncHandler(employees.remove));
   router.get('/offices', asyncHandler(offices.list));
   router.post('/offices', validate(createOfficeSchema), asyncHandler(offices.create));

@@ -18,6 +18,7 @@ import { ApiError } from '../utils/api-error.js';
 import { escapeRegExp, serializeUser } from '../utils/serializers.js';
 import { sendEmployeeInvitation } from './email.service.js';
 import { assignmentIsValid } from './geofence.service.js';
+import { provisionTeamLoggerEmployee } from './teamlogger.service.js';
 
 export async function listEmployees(user, filters) {
   const query = { organizationId: user.organizationId, role: 'Employee' };
@@ -137,6 +138,14 @@ export async function revokeFaceReenrollment(user, employeeId) {
   employee.faceReenrollmentAuthorizedBy = undefined;
   await employee.save();
   return employee;
+}
+
+export async function provisionEmployeeInTeamLogger(user, employeeId, config) {
+  const employee = await findOrganizationEmployee(user, employeeId);
+  if (employee.status !== 'active') {
+    throw new ApiError(409, 'EMPLOYEE_ACCOUNT_INACTIVE', 'The employee must activate their account before TeamLogger provisioning');
+  }
+  return provisionTeamLoggerEmployee(employee, config);
 }
 
 export async function deleteEmployee(user, employeeId) {

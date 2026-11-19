@@ -77,4 +77,20 @@ describe('environment configuration', () => {
     expect(config.faceProvider).toBe('aws-rekognition');
     expect(config.faceSimilarityThreshold).toBe(92);
   });
+
+  it('requires a server-side API key when TeamLogger provisioning is enabled', () => {
+    expect(() => loadConfig({
+      ...validEnvironment,
+      TEAMLOGGER_ENABLED: 'true',
+    })).toThrow(/TEAMLOGGER_API_KEY/);
+
+    const config = loadConfig({
+      ...validEnvironment,
+      TEAMLOGGER_ENABLED: 'true',
+      TEAMLOGGER_API_KEY: 'teamlogger-test-api-key',
+      TEAMLOGGER_API_BASE_URL: 'https://api2.teamlogger.com/',
+    });
+    expect(config.teamLoggerEnabled).toBe(true);
+    expect(config.teamLoggerApiBaseUrl).toBe('https://api2.teamlogger.com');
+  });
 });

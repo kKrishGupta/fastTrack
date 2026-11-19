@@ -70,6 +70,13 @@ export function EmployeesPage() {
       } : current);
     },
   });
+  const provisionTeamLogger = useMutation({
+    mutationFn: hrService.provisionTeamLoggerEmployee,
+    onSuccess: (employee) => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
+      setAssignmentEmployee((current) => current ? { ...current, ...employee } : current);
+    },
+  });
   const removeEmployee = useMutation({
     mutationFn: hrService.deleteEmployee,
     onSuccess: () => {
@@ -112,6 +119,7 @@ export function EmployeesPage() {
     revokeInvitation.reset();
     authorizeFaceChange.reset();
     revokeFaceChange.reset();
+    provisionTeamLogger.reset();
     setAssignmentEmployee(employee);
     setSelectedOfficeId(employee.assignedOffice?._id || employee.assignedOffice?.id || '');
   };
@@ -127,6 +135,8 @@ export function EmployeesPage() {
   const faceChangeAllowed = assignmentEmployee?.faceReenrollmentAuthorizedUntil
     && new Date(assignmentEmployee.faceReenrollmentAuthorizedUntil).getTime() > Date.now();
   const faceChangeRequested = Boolean(assignmentEmployee?.faceReenrollmentRequestedAt) && !faceChangeAllowed;
+  const teamLoggerStatus = assignmentEmployee?.teamLoggerStatus || 'not_configured';
+  const teamLoggerTone = teamLoggerStatus === 'provisioned' ? 'success' : teamLoggerStatus === 'failed' ? 'danger' : teamLoggerStatus === 'pending' ? 'warning' : 'neutral';
 
   const submitOfficeAssignment = (event) => {
     event.preventDefault();
@@ -240,6 +250,20 @@ export function EmployeesPage() {
                 </Button>
               )}
             </div>
+          </div>
+          <div className="member-access-actions">
+            <div><strong>TeamLogger monitoring</strong><p>The employee is provisioned only after activating this FaceTrack account. TeamLogger credentials and API keys are never exposed in the browser.</p></div>
+            <div><Badge tone={teamLoggerTone} dot>{titleCase(teamLoggerStatus)}</Badge></div>
+            {assignmentEmployee.teamLoggerProvisionedAt && <div className="form-success">Linked {formatDateTime(assignmentEmployee.teamLoggerProvisionedAt)}.</div>}
+            {provisionTeamLogger.isSuccess && <div className="form-success">TeamLogger employee provisioning completed.</div>}
+            {provisionTeamLogger.isError && <div className="form-alert">{provisionTeamLogger.error.message}</div>}
+            {teamLoggerStatus !== 'provisioned' && (
+              <div className="member-access-actions__buttons">
+                <Button variant="secondary" onClick={() => provisionTeamLogger.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={provisionTeamLogger.isPending || assignmentEmployee.status !== 'active'}>
+                  <Settings2 size={15} />{provisionTeamLogger.isPending ? 'Connecting…' : teamLoggerStatus === 'failed' ? 'Retry TeamLogger provisioning' : 'Provision in TeamLogger'}
+                </Button>
+              </div>
+            )}
           </div>
           <div className="member-access-actions">
             <div><strong>Access and membership</strong><p>Revoke an unused activation link or permanently remove this member and their records.</p></div>

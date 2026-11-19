@@ -42,6 +42,10 @@ const environmentSchema = z
     FACE_SIMILARITY_THRESHOLD: z.coerce.number().min(70).max(100).default(90),
     FACE_EVIDENCE_RETENTION_DAYS: z.coerce.number().int().min(1).max(90).default(30),
     BIOMETRIC_KEY: z.string().trim().optional(),
+    TEAMLOGGER_ENABLED: booleanFromString.default(false),
+    TEAMLOGGER_API_BASE_URL: z.string().url().default('https://api2.teamlogger.com'),
+    TEAMLOGGER_API_KEY: z.string().trim().min(10, 'TEAMLOGGER_API_KEY is invalid').optional(),
+    TEAMLOGGER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   })
   .superRefine((value, context) => {
     const allowedOrigins = [value.CLIENT_ORIGIN, ...(value.ALLOWED_ORIGINS || [])];
@@ -75,6 +79,13 @@ const environmentSchema = z
       if (value.BIOMETRIC_KEY && Buffer.from(value.BIOMETRIC_KEY, 'base64').length !== 32) {
         context.addIssue({ code: 'custom', path: ['BIOMETRIC_KEY'], message: 'BIOMETRIC_KEY must be a base64-encoded 32-byte key' });
       }
+    }
+    if (value.TEAMLOGGER_ENABLED && !value.TEAMLOGGER_API_KEY) {
+      context.addIssue({
+        code: 'custom',
+        path: ['TEAMLOGGER_API_KEY'],
+        message: 'TEAMLOGGER_API_KEY is required when TeamLogger integration is enabled',
+      });
     }
   });
 
@@ -114,5 +125,9 @@ export function loadConfig(source = process.env) {
     faceSimilarityThreshold: env.FACE_SIMILARITY_THRESHOLD,
     faceEvidenceRetentionDays: env.FACE_EVIDENCE_RETENTION_DAYS,
     biometricKey: env.BIOMETRIC_KEY,
+    teamLoggerEnabled: env.TEAMLOGGER_ENABLED,
+    teamLoggerApiBaseUrl: env.TEAMLOGGER_API_BASE_URL.replace(/\/$/, ''),
+    teamLoggerApiKey: env.TEAMLOGGER_API_KEY,
+    teamLoggerRequestTimeoutMs: env.TEAMLOGGER_REQUEST_TIMEOUT_MS,
   });
 }

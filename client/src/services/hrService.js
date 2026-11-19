@@ -8,6 +8,7 @@ export const hrService = {
   revokeEmployeeInvitations: (employeeId) => api.delete(`/hr/employees/${employeeId}/invitations`).then(({ data }) => data),
   authorizeFaceReenrollment: (employeeId) => api.post(`/hr/employees/${employeeId}/face-reenrollment`).then(({ data }) => data.item),
   revokeFaceReenrollment: (employeeId) => api.delete(`/hr/employees/${employeeId}/face-reenrollment`).then(({ data }) => data.item),
+  provisionTeamLoggerEmployee: (employeeId) => api.post(`/hr/employees/${employeeId}/teamlogger/provision`).then(({ data }) => data.item),
   deleteEmployee: (employeeId) => api.delete(`/hr/employees/${employeeId}`).then(({ data }) => data),
   assignOffice: ({ officeId, employeeId }) => api.post(`/hr/offices/${officeId}/assignments`, { employeeId }).then(({ data }) => data.item),
   offices: () => api.get('/hr/offices').then(({ data }) => data.items),

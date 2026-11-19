@@ -6,6 +6,7 @@ All errors use `{ "error": { "code": "…", "message": "…" } }`.
 - HR: `/api/hr/departments`, `/api/hr/employees`, `/api/hr/offices`, `/api/hr/attendance`
   - `DELETE /api/hr/employees/:id/invitations` revokes every pending activation token for an employee.
   - `DELETE /api/hr/employees/:id` permanently removes the employee and their organization-owned attendance, verification, enrollment, invitation, WFH, and office-assignment data.
+  - `POST /api/hr/employees/:id/teamlogger/provision` retries idempotent TeamLogger provisioning for an active employee.
   - `PATCH /api/hr/offices/:id` updates office details, active status, coordinates, and the 25–5,000 metre attendance radius.
 - Employee: `GET /api/employee/offices`
 - Attendance: `POST /api/attendance/challenge`, `/verify-location`, `/verify-face`, `/check-in`, `/check-out`; `GET /today`, `/history`
