@@ -33,6 +33,10 @@ async function getActiveSession(user, sessionId) {
 
 export async function startEnrollment(user, config) {
   const adapter = resolveFaceAdapter(config);
+  if (user.enrollmentStatus === 'complete'
+    && (!user.faceReenrollmentAuthorizedUntil || user.faceReenrollmentAuthorizedUntil <= new Date())) {
+    throw new ApiError(403, 'FACE_REENROLLMENT_APPROVAL_REQUIRED', 'Ask HR to allow a face change before replacing your enrolled profile');
+  }
   await EnrollmentSession.updateMany(
     { organizationId: user.organizationId, employeeId: user.id, status: 'active' },
     { $set: { status: 'expired' } },
@@ -120,7 +124,14 @@ export async function completeEnrollment(user, sessionId, config) {
   );
   session.status = 'complete';
   await session.save();
-  const updatedUser = await User.findByIdAndUpdate(user.id, { enrollmentStatus: 'complete' }, { new: true });
+  const updatedUser = await User.findByIdAndUpdate(user.id, {
+    $set: { enrollmentStatus: 'complete' },
+    $unset: {
+      faceReenrollmentAuthorizedAt: 1,
+      faceReenrollmentAuthorizedUntil: 1,
+      faceReenrollmentAuthorizedBy: 1,
+    },
+  }, { new: true });
   await writeAudit({
     user,
     action: 'face.enrollment.completed',

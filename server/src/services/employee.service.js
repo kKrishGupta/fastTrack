@@ -110,6 +110,22 @@ export async function revokeEmployeeInvitations(user, employeeId) {
   };
 }
 
+export async function authorizeFaceReenrollment(user, employeeId) {
+  const employee = await findOrganizationEmployee(user, employeeId);
+  if (employee.status !== 'active') {
+    throw new ApiError(409, 'EMPLOYEE_ACCOUNT_INACTIVE', 'Activate the employee account before allowing a face change');
+  }
+  if (employee.enrollmentStatus !== 'complete') {
+    throw new ApiError(409, 'INITIAL_ENROLLMENT_PENDING', 'The employee can complete their initial face enrollment without approval');
+  }
+  const now = new Date();
+  employee.faceReenrollmentAuthorizedAt = now;
+  employee.faceReenrollmentAuthorizedUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  employee.faceReenrollmentAuthorizedBy = user.id;
+  await employee.save();
+  return employee;
+}
+
 export async function deleteEmployee(user, employeeId) {
   const session = await User.startSession();
   let deletedEmployee;

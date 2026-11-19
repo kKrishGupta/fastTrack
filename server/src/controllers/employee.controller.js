@@ -1,5 +1,6 @@
-import { deleteEmployee, inviteEmployee, listEmployees, revokeEmployeeInvitations } from '../services/employee.service.js';
+import { authorizeFaceReenrollment, deleteEmployee, inviteEmployee, listEmployees, revokeEmployeeInvitations } from '../services/employee.service.js';
 import { writeAudit } from '../services/audit.service.js';
+import { serializeUser } from '../utils/serializers.js';
 
 export async function list(req, res) { res.json(await listEmployees(req.user, req.validated.query)); }
 export async function invite(req, res) {
@@ -24,6 +25,21 @@ export async function revokeInvitations(req, res) {
   });
   req.app.get('io')?.to(`org:${req.user.organizationId}:hr`).emit('employee:invitation_revoked', result);
   res.json(result);
+}
+
+export async function allowFaceReenrollment(req, res) {
+  const employee = await authorizeFaceReenrollment(req.user, req.validated.params.id);
+  await writeAudit({
+    user: req.user,
+    action: 'face.reenrollment.authorized',
+    entityType: 'User',
+    entityId: employee.id,
+    metadata: { authorizedUntil: employee.faceReenrollmentAuthorizedUntil },
+  });
+  req.app.get('io')?.to(`user:${employee.id}`).emit('face:reenrollment_authorized', {
+    authorizedUntil: employee.faceReenrollmentAuthorizedUntil,
+  });
+  res.json({ item: serializeUser(employee) });
 }
 
 export async function remove(req, res) {

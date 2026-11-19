@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveFaceAdapter } from '../src/services/enrollment.service.js';
+import { resolveFaceAdapter, startEnrollment } from '../src/services/enrollment.service.js';
 
 describe('face enrollment adapter selection', () => {
   it('prefers the configured production identity provider', () => {
@@ -16,5 +16,15 @@ describe('face enrollment adapter selection', () => {
 
   it('fails closed when no adapter is configured', () => {
     expect(() => resolveFaceAdapter({ isProduction: true })).toThrow(/ALLOW_DEMO_FACE_ADAPTER/);
+  });
+
+  it('requires HR approval before replacing a completed face profile', async () => {
+    await expect(startEnrollment({
+      enrollmentStatus: 'complete',
+      faceReenrollmentAuthorizedUntil: new Date(Date.now() - 1000),
+    }, {
+      isProduction: true,
+      allowDemoFaceAdapter: true,
+    })).rejects.toMatchObject({ code: 'FACE_REENROLLMENT_APPROVAL_REQUIRED', status: 403 });
   });
 });

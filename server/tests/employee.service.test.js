@@ -25,7 +25,7 @@ const models = vi.hoisted(() => {
 
 vi.mock('../src/models.js', () => models);
 
-import { deleteEmployee, revokeEmployeeInvitations } from '../src/services/employee.service.js';
+import { authorizeFaceReenrollment, deleteEmployee, revokeEmployeeInvitations } from '../src/services/employee.service.js';
 
 function queryResult(value) {
   return {
@@ -64,6 +64,23 @@ describe('employee membership administration', () => {
       },
       { status: 'revoked', active: false },
     );
+  });
+
+  it('grants completed employees a time-limited face change authorization', async () => {
+    const completedEmployee = {
+      ...employee,
+      status: 'active',
+      enrollmentStatus: 'complete',
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+    models.User.findOne.mockReturnValue(queryResult(completedEmployee));
+
+    await expect(authorizeFaceReenrollment(hr, employee.id)).resolves.toBe(completedEmployee);
+    expect(completedEmployee.faceReenrollmentAuthorizedBy).toBe(hr.id);
+    expect(completedEmployee.faceReenrollmentAuthorizedAt).toBeInstanceOf(Date);
+    expect(completedEmployee.faceReenrollmentAuthorizedUntil).toBeInstanceOf(Date);
+    expect(completedEmployee.faceReenrollmentAuthorizedUntil.getTime() - completedEmployee.faceReenrollmentAuthorizedAt.getTime()).toBe(24 * 60 * 60 * 1000);
+    expect(completedEmployee.save).toHaveBeenCalledOnce();
   });
 
   it('purges employee-owned records and writes the deletion audit in one transaction', async () => {

@@ -75,6 +75,9 @@ const userSchema = new Schema(
       default: 'not_started',
     },
     biometricConsentAt: Date,
+    faceReenrollmentAuthorizedAt: Date,
+    faceReenrollmentAuthorizedUntil: Date,
+    faceReenrollmentAuthorizedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   schemaOptions,
 );

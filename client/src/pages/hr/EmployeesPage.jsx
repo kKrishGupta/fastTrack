@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Ban, Check, CheckCircle2, Copy, MailPlus, MapPin, Plus, Search, Settings2, Trash2, TriangleAlert, UserRound } from 'lucide-react';
+import { Ban, Check, CheckCircle2, Copy, Fingerprint, MailPlus, MapPin, Plus, Search, Settings2, Trash2, TriangleAlert, UserRound } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -50,6 +50,13 @@ export function EmployeesPage() {
       setAssignmentEmployee((current) => current ? { ...current, invitationPending: false } : current);
     },
   });
+  const authorizeFaceChange = useMutation({
+    mutationFn: hrService.authorizeFaceReenrollment,
+    onSuccess: (employee) => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
+      setAssignmentEmployee((current) => current ? { ...current, ...employee } : current);
+    },
+  });
   const removeEmployee = useMutation({
     mutationFn: hrService.deleteEmployee,
     onSuccess: () => {
@@ -90,6 +97,7 @@ export function EmployeesPage() {
   const openOfficeAssignment = (employee) => {
     assignOffice.reset();
     revokeInvitation.reset();
+    authorizeFaceChange.reset();
     setAssignmentEmployee(employee);
     setSelectedOfficeId(employee.assignedOffice?._id || employee.assignedOffice?.id || '');
   };
@@ -102,6 +110,8 @@ export function EmployeesPage() {
   };
 
   const deleteConfirmationValue = deleteTarget?.employeeCode || deleteTarget?.email || '';
+  const faceChangeAllowed = assignmentEmployee?.faceReenrollmentAuthorizedUntil
+    && new Date(assignmentEmployee.faceReenrollmentAuthorizedUntil).getTime() > Date.now();
 
   const submitOfficeAssignment = (event) => {
     event.preventDefault();
@@ -196,6 +206,17 @@ export function EmployeesPage() {
             <p className="form-helper">Assigning a new office replaces the employee's current active office.</p>
             <div className="modal-actions"><Button variant="secondary" onClick={() => setAssignmentEmployee(null)}>Close</Button><Button type="submit" disabled={!selectedOfficeId || assignOffice.isPending}>{assignOffice.isPending ? 'Assigning…' : 'Assign office'}</Button></div>
           </form>
+          <div className="member-access-actions">
+            <div><strong>Face profile change</strong><p>For security, an enrolled face can only be replaced after HR grants one-time access. Authorization expires after 24 hours and is consumed when enrollment completes.</p></div>
+            {faceChangeAllowed && <div className="form-success">Face change allowed until {formatDateTime(assignmentEmployee.faceReenrollmentAuthorizedUntil)}.</div>}
+            {authorizeFaceChange.isSuccess && <div className="form-success">The employee can now open Face enrollment and replace their profile.</div>}
+            {authorizeFaceChange.isError && <div className="form-alert">{authorizeFaceChange.error.message}</div>}
+            <div className="member-access-actions__buttons">
+              <Button variant="secondary" onClick={() => authorizeFaceChange.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={authorizeFaceChange.isPending || assignmentEmployee.enrollmentStatus !== 'complete'}>
+                <Fingerprint size={15} />{authorizeFaceChange.isPending ? 'Authorizing…' : faceChangeAllowed ? 'Extend face change access' : 'Allow face change'}
+              </Button>
+            </div>
+          </div>
           <div className="member-access-actions">
             <div><strong>Access and membership</strong><p>Revoke an unused activation link or permanently remove this member and their records.</p></div>
             {revokeInvitation.isSuccess && <div className="form-success">Invitation token revoked. The previous activation link can no longer be used.</div>}

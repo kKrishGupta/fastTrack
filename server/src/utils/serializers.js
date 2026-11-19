@@ -11,6 +11,8 @@ const USER_FIELDS = [
   'status',
   'enrollmentStatus',
   'biometricConsentAt',
+  'faceReenrollmentAuthorizedAt',
+  'faceReenrollmentAuthorizedUntil',
   'active',
   'createdAt',
   'updatedAt',

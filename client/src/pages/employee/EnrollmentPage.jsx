@@ -63,9 +63,7 @@ export function EnrollmentPage() {
       await videoRef.current.play();
     } catch (requestError) {
       mediaStream?.getTracks().forEach((track) => track.stop());
-      setError(requestError.code === 'FACE_MODEL_NOT_CONFIGURED'
-        ? requestError.message
-        : 'Camera enrollment could not start. Check camera permission and server connection.');
+      setError(requestError.message || 'Camera enrollment could not start. Check camera permission and server connection.');
     } finally {
       setBusy(false);
     }
@@ -110,7 +108,12 @@ export function EnrollmentPage() {
     setError('');
     try {
       const result = await enrollmentService.complete(sessionId);
-      setUser({ ...user, ...result.user });
+      setUser({
+        ...user,
+        ...result.user,
+        faceReenrollmentAuthorizedAt: undefined,
+        faceReenrollmentAuthorizedUntil: undefined,
+      });
       setFinished(true);
       stream?.getTracks().forEach((track) => track.stop());
     } catch (requestError) {

@@ -71,6 +71,8 @@ export function EmployeeDashboardPage() {
   const liveOvertime = working && schedule?.policy?.overtimeEnabled && plannedCheckoutReached
     ? Math.max(0, (liveMinutes || 0) - schedule.policy.overtimeAfterMinutes)
     : today.data?.overtimeMinutes || 0;
+  const faceChangeAllowed = user?.faceReenrollmentAuthorizedUntil
+    && new Date(user.faceReenrollmentAuthorizedUntil).getTime() > Date.now();
 
   const requestCheckout = () => {
     const current = schedule?.today?.currentTime;
@@ -93,7 +95,9 @@ export function EmployeeDashboardPage() {
             {working
               ? <Button variant="light" onClick={requestCheckout} disabled={busy}><Clock3 size={18} />{attendanceFlow.checkOut.isPending ? 'Checking out…' : 'Check out'}</Button>
               : <Button variant="lime" onClick={() => setFaceCheckOpen(true)} disabled={busy || user?.enrollmentStatus !== 'complete' || !canCheckIn}><LocateFixed size={18} />{attendanceFlow.checkIn.isPending ? 'Verifying…' : 'Check in securely'}</Button>}
-            <Link className="button button--darkGhost button--md" to="/employee/enrollment"><Fingerprint size={18} />Face enrollment</Link>
+            {user?.enrollmentStatus !== 'complete' || faceChangeAllowed
+              ? <Link className="button button--darkGhost button--md" to="/employee/enrollment"><Fingerprint size={18} />{user?.enrollmentStatus === 'complete' ? 'Change enrolled face' : 'Face enrollment'}</Link>
+              : <Button variant="darkGhost" disabled title="Ask HR to allow a face change"><Fingerprint size={18} />Face change locked</Button>}
           </div>
           {!working && schedule && <div className={`hero-message ${canCheckIn ? 'hero-message--success' : 'hero-message--policy'}`}><CalendarDays size={17} />{schedule.today.message} · {schedule.policy.checkInWindowStart}–{schedule.policy.checkInWindowEnd}</div>}
           {attendanceFlow.progress && <div className="hero-message hero-message--success"><CheckCircle2 size={17} />{attendanceFlow.progress}</div>}
