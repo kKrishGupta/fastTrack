@@ -75,7 +75,7 @@ export function AcceptInvitePage() {
             <div>
               <strong>{invitation.data.employeeName}</strong>
               <p><Mail size={13} />{invitation.data.email}</p>
-              <small>Workspace: {invitation.data.organization.slug} · Expires {formatDateTime(invitation.data.expiresAt)}</small>
+              <small>Employee code: {invitation.data.employeeCode} · Expires {formatDateTime(invitation.data.expiresAt)}</small>
             </div>
           </div>
         )}

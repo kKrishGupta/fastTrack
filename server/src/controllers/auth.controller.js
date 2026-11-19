@@ -1,6 +1,7 @@
 import {
   acceptInvitation,
   authenticateCredentials,
+  authenticateEmployeeCredentials,
   getInvitationPreview,
   getSessionOrganization,
   registerOrganization,
@@ -21,7 +22,11 @@ export function createAuthController(config) {
 
   return {
     organizationLogin: loginAs('HR'),
-    employeeLogin: loginAs('Employee'),
+    employeeLogin: async (req, res) => {
+      const { user, organization, token } = await authenticateEmployeeCredentials(req.validated.body, config);
+      setAuthCookies(res, token, config);
+      res.json({ user: serializeSessionUser(user, organization) });
+    },
     registerOrganization: async (req, res) => {
       const { user, organization, token } = await registerOrganization(req.validated.body, config);
       setAuthCookies(res, token, config);

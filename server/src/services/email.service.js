@@ -36,7 +36,7 @@ export async function sendEmployeeInvitation({
   recipientEmail,
   recipientName,
   organizationName,
-  workspaceSlug,
+  employeeCode,
   inviteUrl,
   expiresAt,
 }) {
@@ -51,7 +51,7 @@ export async function sendEmployeeInvitation({
   const resend = new Resend(config.resendApiKey);
   const safeName = escapeHtml(recipientName);
   const safeOrganization = escapeHtml(organizationName);
-  const safeWorkspace = escapeHtml(workspaceSlug);
+  const safeEmployeeCode = escapeHtml(employeeCode);
   const safeUrl = escapeHtml(inviteUrl);
   const safeExpiry = escapeHtml(expiresAt.toISOString());
   try {
@@ -70,13 +70,13 @@ export async function sendEmployeeInvitation({
               <p style="margin:0 0 14px">Hello ${safeName},</p>
               <p style="margin:0 0 22px;line-height:1.6;color:#56645d">Your HR administrator invited you to activate an employee-only attendance account.</p>
               <a href="${safeUrl}" style="display:inline-block;padding:13px 20px;border-radius:10px;background:#15261f;color:#fff;text-decoration:none;font-weight:700">Activate employee account</a>
-              <p style="margin:22px 0 0;font-size:13px;color:#66736c">Workspace ID: <strong>${safeWorkspace}</strong></p>
+              <p style="margin:22px 0 0;font-size:13px;color:#66736c">Employee code: <strong>${safeEmployeeCode}</strong></p>
               <p style="margin:7px 0 0;font-size:12px;color:#87918b">This one-time invitation expires at ${safeExpiry}. If you did not expect it, you can ignore this email.</p>
             </div>
           </div>
         </div>
       `,
-      text: `Hello ${recipientName},\n\nYou were invited to join ${organizationName} on FaceTrack Pro.\n\nActivate your employee account: ${inviteUrl}\n\nWorkspace ID: ${workspaceSlug}\nThis one-time invitation expires at ${expiresAt.toISOString()}.`,
+      text: `Hello ${recipientName},\n\nYou were invited to join ${organizationName} on FaceTrack Pro.\n\nActivate your employee account: ${inviteUrl}\n\nEmployee code: ${employeeCode}\nThis one-time invitation expires at ${expiresAt.toISOString()}.`,
       headers: { 'X-Entity-Ref-ID': invitationId },
     });
     if (error || !data?.id) throw normalizeResendFailure(error, config.resendFromEmail);

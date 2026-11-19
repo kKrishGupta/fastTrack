@@ -21,7 +21,7 @@ const invitation = {
   recipientEmail: 'employee@example.com',
   recipientName: 'Taylor <Employee>',
   organizationName: 'Example & Company',
-  workspaceSlug: 'example-company',
+  employeeCode: 'EMP-42',
   inviteUrl: 'https://app.example.com/employee/invitations/accept?token=secret',
   expiresAt: new Date('2026-11-24T12:00:00.000Z'),
 };
@@ -40,6 +40,8 @@ describe('employee invitation email', () => {
     }));
     expect(sendMock.mock.calls[0][0].html).toContain('Taylor &lt;Employee&gt;');
     expect(sendMock.mock.calls[0][0].html).toContain('Example &amp; Company');
+    expect(sendMock.mock.calls[0][0].html).toContain('Employee code: <strong>EMP-42</strong>');
+    expect(sendMock.mock.calls[0][0].html).toContain('Employee code: <strong>EMP-42</strong>');
   });
 
   it('requires both Resend settings', async () => {

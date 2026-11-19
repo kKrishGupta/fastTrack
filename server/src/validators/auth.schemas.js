@@ -14,6 +14,12 @@ export const loginSchema = z.object({
   password: z.string().min(10).max(256),
 });
 
+export const employeeLoginSchema = z.object({
+  employeeCode: z.string().trim().min(2).max(40),
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(10).max(256),
+});
+
 export const registerOrganizationSchema = z.object({
   organizationName: z.string().trim().min(2).max(120),
   workspaceSlug: workspaceSlugSchema,

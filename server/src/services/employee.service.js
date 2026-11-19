@@ -229,7 +229,7 @@ export async function inviteEmployee(user, data, config) {
       recipientEmail: employee.email,
       recipientName: employee.name,
       organizationName: organization.name,
-      workspaceSlug: organization.slug,
+      employeeCode: employee.employeeCode,
       inviteUrl: inviteUrl.toString(),
       expiresAt,
     });

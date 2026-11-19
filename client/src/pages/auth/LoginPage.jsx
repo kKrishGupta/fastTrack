@@ -8,7 +8,7 @@ import { authService } from '../../services/authService';
 
 export function LoginPage({ accountType }) {
   const isEmployee = accountType === 'employee';
-  const [form, setForm] = useState({ workspaceSlug: '', email: '', password: '' });
+  const [form, setForm] = useState({ workspaceSlug: '', employeeCode: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -30,7 +30,7 @@ export function LoginPage({ accountType }) {
     setSubmitting(true);
     try {
       const authenticatedUser = isEmployee
-        ? await authService.loginEmployee(form)
+        ? await authService.loginEmployee({ employeeCode: form.employeeCode, email: form.email, password: form.password })
         : await authService.loginOrganization(form);
       setUser(authenticatedUser);
       const requestedPath = location.state?.from?.pathname;
@@ -54,12 +54,12 @@ export function LoginPage({ accountType }) {
         {error && <div className="form-alert" role="alert">{error}</div>}
 
         <label className="form-field">
-          <span>Workspace ID</span>
+          <span>{isEmployee ? 'Employee code' : 'Workspace ID'}</span>
           <div className="field-with-icon">
             {isEmployee ? <UserRound size={17} /> : <Building2 size={17} />}
-            <input required minLength={3} autoComplete="organization" value={form.workspaceSlug} onChange={updateField('workspaceSlug')} placeholder="your-company" />
+            <input required minLength={isEmployee ? 2 : 3} autoComplete={isEmployee ? 'username' : 'organization'} value={isEmployee ? form.employeeCode : form.workspaceSlug} onChange={updateField(isEmployee ? 'employeeCode' : 'workspaceSlug')} placeholder={isEmployee ? 'e.g. 112' : 'your-company'} />
           </div>
-          <small>Usually your organization name in lowercase, such as acme-labs.</small>
+          <small>{isEmployee ? 'Enter the employee code assigned by HR, shown on your employee record.' : 'Usually your organization name in lowercase, such as acme-labs.'}</small>
         </label>
         <label className="form-field">
           <span>Work email</span>

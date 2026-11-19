@@ -6,7 +6,7 @@ import { listForEmployee } from '../controllers/office.controller.js';
 import { requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../utils/async-handler.js';
-import { acceptInvitationSchema, invitationTokenParamsSchema, loginSchema } from '../validators/auth.schemas.js';
+import { acceptInvitationSchema, employeeLoginSchema, invitationTokenParamsSchema } from '../validators/auth.schemas.js';
 import { enrollmentCaptureSchema, enrollmentCompleteSchema } from '../validators/enrollment.schemas.js';
 import * as wfh from '../controllers/wfh.controller.js';
 import { createWfhRequestSchema, wfhQuerySchema } from '../validators/wfh.schemas.js';
@@ -17,7 +17,7 @@ export function createEmployeeRouter({ config, authenticate }) {
   const enrollment = createEnrollmentController(config);
   const loginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: true, legacyHeaders: false });
 
-  router.post('/login', loginLimiter, validate(loginSchema), asyncHandler(controller.employeeLogin));
+  router.post('/login', loginLimiter, validate(employeeLoginSchema), asyncHandler(controller.employeeLogin));
   router.get('/invitations/:token', validate(invitationTokenParamsSchema, 'params'), asyncHandler(controller.invitation));
   router.post('/invitations/accept', loginLimiter, validate(acceptInvitationSchema), asyncHandler(controller.acceptInvitation));
   router.use(authenticate, requireRole('Employee'));

@@ -52,6 +52,30 @@ export async function authenticateCredentials({ workspaceSlug, email, password }
   return { user, organization, token: signAccessToken(user, config) };
 }
 
+export async function authenticateEmployeeCredentials({ employeeCode, email, password }, config) {
+  const candidates = await User.find({
+    employeeCode,
+    email,
+    role: 'Employee',
+    status: 'active',
+    active: true,
+  }).select('+passwordHash').limit(3);
+
+  const matchingUsers = [];
+  for (const candidate of candidates) {
+    if (candidate.passwordHash && await argon2.verify(candidate.passwordHash, password)) {
+      matchingUsers.push(candidate);
+    }
+  }
+  if (matchingUsers.length !== 1) {
+    throw new ApiError(401, 'INVALID_CREDENTIALS', 'Invalid employee code, email, or password');
+  }
+
+  const user = matchingUsers[0];
+  const organization = await requireActiveOrganization(user.organizationId);
+  return { user, organization, token: signAccessToken(user, config) };
+}
+
 export async function registerOrganization(data, config) {
   if (await Organization.exists({ slug: data.workspaceSlug })) {
     throw new ApiError(409, 'WORKSPACE_TAKEN', 'That workspace ID is already in use');
@@ -89,7 +113,7 @@ export async function getInvitationPreview(token) {
     tokenHash: hashInvitationToken(token),
     status: 'pending',
     active: true,
-  }).populate('employeeId', 'name email').populate('organizationId', 'name slug timezone active');
+  }).populate('employeeId', 'name email employeeCode').populate('organizationId', 'name slug timezone active');
 
   if (!invitation || !invitation.employeeId || !invitation.organizationId?.active) {
     throw new ApiError(404, 'INVITATION_INVALID', 'This invitation is invalid or has already been used');
@@ -104,6 +128,7 @@ export async function getInvitationPreview(token) {
   return {
     email: invitation.email,
     employeeName: invitation.employeeId.name,
+    employeeCode: invitation.employeeId.employeeCode,
     expiresAt: invitation.expiresAt,
     organization: serializeOrganization(invitation.organizationId),
   };
