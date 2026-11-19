@@ -1,6 +1,10 @@
 import { api } from '../api';
 
 export const enrollmentService = {
+  async requestReplacement() {
+    const { data } = await api.post('/employee/enrollment/replacement-request');
+    return data.user;
+  },
   async start() {
     const { data } = await api.post('/employee/enrollment/start');
     return data;

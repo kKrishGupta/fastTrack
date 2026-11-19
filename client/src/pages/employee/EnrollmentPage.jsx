@@ -37,6 +37,7 @@ export function EnrollmentPage() {
   const [autoCountdown, setAutoCountdown] = useState(null);
   const [autoCaptureBlocked, setAutoCaptureBlocked] = useState(false);
   const currentPose = poses[step]?.name ?? 'Front';
+  const replacingReference = user?.enrollmentStatus === 'complete';
   const { analysis, captureFrame, modelError } = useFaceEnrollmentCamera({
     videoRef,
     pose: currentPose,
@@ -111,6 +112,7 @@ export function EnrollmentPage() {
       setUser({
         ...user,
         ...result.user,
+        faceReenrollmentRequestedAt: undefined,
         faceReenrollmentAuthorizedAt: undefined,
         faceReenrollmentAuthorizedUntil: undefined,
       });
@@ -144,7 +146,7 @@ export function EnrollmentPage() {
   return (
     <div className="enrollment-page page-enter">
       <div className="enrollment-topbar"><Link className="button button--secondary button--md" to="/employee"><ArrowLeft size={17} />Dashboard</Link><Badge tone={adapter === 'demo-capture-evidence' ? 'warning' : 'success'}><ShieldCheck size={14} />{adapter === 'aws-rekognition' ? 'AWS identity verification' : adapter === 'demo-capture-evidence' ? 'Demo evidence mode' : 'Encrypted capture workflow'}</Badge></div>
-      <header className="enrollment-heading"><p className="eyebrow">Guided enrollment</p><h1>Five angles. One secure profile.</h1><p>Each angle is accepted only after one clear, centered face holds the required pose.</p></header>
+      <header className="enrollment-heading"><p className="eyebrow">{replacingReference ? 'Approved reference replacement' : 'Initial account setup'}</p><h1>{replacingReference ? 'Replace your original reference face.' : 'Register your original reference face.'}</h1><p>Each angle is accepted only after one clear, centered face holds the required pose. Your existing reference remains active until this process completes.</p></header>
       <div className="enrollment-grid">
         <section className="camera-stage">
           <video ref={videoRef} autoPlay muted playsInline />
@@ -154,7 +156,7 @@ export function EnrollmentPage() {
           {box && stream && !allCaptured && <div className={`detected-face ${analysis.valid ? 'detected-face--valid' : ''}`} style={{ left: `${(1 - box.left - box.width) * 100}%`, top: `${box.top * 100}%`, width: `${box.width * 100}%`, height: `${box.height * 100}%` }} />}
           <div className={`face-guide ${analysis.valid ? 'face-guide--valid' : ''} ${allCaptured ? 'face-guide--complete' : ''}`}><span /><span /><span /><span /></div>
           {!stream && !finished && <div className="camera-stage__start"><span><Camera size={26} /></span><h2>Camera is off</h2><p>Frames are processed only for enrollment.</p><Button variant="lime" onClick={startCamera} disabled={busy || Boolean(modelError)}>{busy ? <LoaderCircle className="spin" size={17} /> : <Eye size={17} />}Enable camera</Button></div>}
-          {finished && <div className="camera-stage__start"><span><Check size={26} /></span><h2>Enrollment saved</h2><p>Your five validated captures were submitted securely.</p><Link className="button button--lime button--md" to="/employee">Return to dashboard</Link></div>}
+          {finished && <div className="camera-stage__start"><span><Check size={26} /></span><h2>{replacingReference ? 'Reference face replaced' : 'Reference face registered'}</h2><p>Your five validated captures were submitted securely.</p><Link className="button button--lime button--md" to="/employee">Return to dashboard</Link></div>}
           {stream && !finished && <div className={`camera-instruction ${analysis.stable ? 'camera-instruction--ready' : ''}`}><span>{allCaptured ? <Check size={18} /> : step + 1}</span><p>{allCaptured ? 'All five angles captured' : analysis.message || poses[step].instruction}</p></div>}
         </section>
         <aside className="pose-panel">

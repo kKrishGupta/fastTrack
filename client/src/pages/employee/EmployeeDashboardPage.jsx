@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Fingerprint, LocateFixed, MapPin, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AttendanceCalendar, minutesFor } from '../../components/attendance/AttendanceCalendar';
@@ -11,6 +11,7 @@ import { ErrorState, LoadingState } from '../../components/ui/DataState';
 import { useAuth } from '../../context/AuthContext';
 import { useAttendanceFlow } from '../../hooks/useAttendanceFlow';
 import { attendanceService } from '../../services/attendanceService';
+import { enrollmentService } from '../../services/enrollmentService';
 import { formatDuration, formatTime, titleCase } from '../../utils/formatters';
 
 function useLiveNow(enabled) {
@@ -41,7 +42,7 @@ function SessionRow({ item, now }) {
 }
 
 export function EmployeeDashboardPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [faceCheckOpen, setFaceCheckOpen] = useState(false);
   const today = useQuery({ queryKey: ['employee', 'today'], queryFn: attendanceService.today, refetchInterval: 30_000 });
@@ -73,6 +74,11 @@ export function EmployeeDashboardPage() {
     : today.data?.overtimeMinutes || 0;
   const faceChangeAllowed = user?.faceReenrollmentAuthorizedUntil
     && new Date(user.faceReenrollmentAuthorizedUntil).getTime() > Date.now();
+  const faceChangeRequested = Boolean(user?.faceReenrollmentRequestedAt) && !faceChangeAllowed;
+  const requestFaceChange = useMutation({
+    mutationFn: enrollmentService.requestReplacement,
+    onSuccess: (updatedUser) => setUser({ ...user, ...updatedUser }),
+  });
 
   const requestCheckout = () => {
     const current = schedule?.today?.currentTime;
@@ -95,13 +101,19 @@ export function EmployeeDashboardPage() {
             {working
               ? <Button variant="light" onClick={requestCheckout} disabled={busy}><Clock3 size={18} />{attendanceFlow.checkOut.isPending ? 'Checking out…' : 'Check out'}</Button>
               : <Button variant="lime" onClick={() => setFaceCheckOpen(true)} disabled={busy || user?.enrollmentStatus !== 'complete' || !canCheckIn}><LocateFixed size={18} />{attendanceFlow.checkIn.isPending ? 'Verifying…' : 'Check in securely'}</Button>}
-            {user?.enrollmentStatus !== 'complete' || faceChangeAllowed
-              ? <Link className="button button--darkGhost button--md" to="/employee/enrollment"><Fingerprint size={18} />{user?.enrollmentStatus === 'complete' ? 'Change enrolled face' : 'Face enrollment'}</Link>
-              : <Button variant="darkGhost" disabled title="Ask HR to allow a face change"><Fingerprint size={18} />Face change locked</Button>}
+            {user?.enrollmentStatus !== 'complete' && <Link className="button button--darkGhost button--md" to="/employee/enrollment"><Fingerprint size={18} />Register reference face</Link>}
+            {user?.enrollmentStatus === 'complete' && faceChangeAllowed && <Link className="button button--darkGhost button--md" to="/employee/enrollment"><Fingerprint size={18} />Replace reference face</Link>}
+            {user?.enrollmentStatus === 'complete' && !faceChangeAllowed && (
+              <Button variant="darkGhost" onClick={() => requestFaceChange.mutate()} disabled={faceChangeRequested || requestFaceChange.isPending}>
+                <Fingerprint size={18} />{requestFaceChange.isPending ? 'Sending request…' : faceChangeRequested ? 'Face replacement requested' : 'Request face replacement'}
+              </Button>
+            )}
           </div>
           {!working && schedule && <div className={`hero-message ${canCheckIn ? 'hero-message--success' : 'hero-message--policy'}`}><CalendarDays size={17} />{schedule.today.message} · {schedule.policy.checkInWindowStart}–{schedule.policy.checkInWindowEnd}</div>}
           {attendanceFlow.progress && <div className="hero-message hero-message--success"><CheckCircle2 size={17} />{attendanceFlow.progress}</div>}
           {attendanceFlow.error && <div className="hero-message hero-message--error">{attendanceFlow.error}</div>}
+          {requestFaceChange.isSuccess && <div className="hero-message hero-message--success"><CheckCircle2 size={17} />Request sent to HR. Your current reference face remains active until replacement is approved and completed.</div>}
+          {requestFaceChange.isError && <div className="hero-message hero-message--error">{requestFaceChange.error.message}</div>}
         </div>
         <div className="session-ticket">
           <span className="session-ticket__label">Today's monitored session</span>

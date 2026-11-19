@@ -118,6 +118,9 @@ export async function authorizeFaceReenrollment(user, employeeId) {
   if (employee.enrollmentStatus !== 'complete') {
     throw new ApiError(409, 'INITIAL_ENROLLMENT_PENDING', 'The employee can complete their initial face enrollment without approval');
   }
+  if (!employee.faceReenrollmentRequestedAt) {
+    throw new ApiError(409, 'FACE_REENROLLMENT_REQUEST_REQUIRED', 'The employee must request a reference-face replacement first');
+  }
   const now = new Date();
   employee.faceReenrollmentAuthorizedAt = now;
   employee.faceReenrollmentAuthorizedUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -128,6 +131,7 @@ export async function authorizeFaceReenrollment(user, employeeId) {
 
 export async function revokeFaceReenrollment(user, employeeId) {
   const employee = await findOrganizationEmployee(user, employeeId);
+  employee.faceReenrollmentRequestedAt = undefined;
   employee.faceReenrollmentAuthorizedAt = undefined;
   employee.faceReenrollmentAuthorizedUntil = undefined;
   employee.faceReenrollmentAuthorizedBy = undefined;

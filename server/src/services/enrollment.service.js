@@ -50,6 +50,26 @@ export async function startEnrollment(user, config) {
   return { sessionId: session.id, expiresAt: session.expiresAt, adapter };
 }
 
+export async function requestFaceReenrollment(user) {
+  if (user.enrollmentStatus !== 'complete') {
+    throw new ApiError(409, 'INITIAL_ENROLLMENT_PENDING', 'Complete your initial reference-face registration first');
+  }
+  if (user.faceReenrollmentAuthorizedUntil && user.faceReenrollmentAuthorizedUntil > new Date()) {
+    throw new ApiError(409, 'FACE_REENROLLMENT_ALREADY_AUTHORIZED', 'HR has already approved your reference-face replacement');
+  }
+  if (!user.faceReenrollmentRequestedAt) {
+    user.faceReenrollmentRequestedAt = new Date();
+    await user.save();
+    await writeAudit({
+      user,
+      action: 'face.reenrollment.requested',
+      entityType: 'User',
+      entityId: user.id,
+    });
+  }
+  return user;
+}
+
 export async function saveEnrollmentCapture(user, payload, config) {
   const configuredAdapter = resolveFaceAdapter(config);
   const session = await getActiveSession(user, payload.sessionId);
@@ -127,6 +147,7 @@ export async function completeEnrollment(user, sessionId, config) {
   const updatedUser = await User.findByIdAndUpdate(user.id, {
     $set: { enrollmentStatus: 'complete' },
     $unset: {
+      faceReenrollmentRequestedAt: 1,
       faceReenrollmentAuthorizedAt: 1,
       faceReenrollmentAuthorizedUntil: 1,
       faceReenrollmentAuthorizedBy: 1,

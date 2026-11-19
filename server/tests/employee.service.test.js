@@ -71,6 +71,7 @@ describe('employee membership administration', () => {
       ...employee,
       status: 'active',
       enrollmentStatus: 'complete',
+      faceReenrollmentRequestedAt: new Date(),
       save: vi.fn().mockResolvedValue(undefined),
     };
     models.User.findOne.mockReturnValue(queryResult(completedEmployee));
@@ -83,9 +84,26 @@ describe('employee membership administration', () => {
     expect(completedEmployee.save).toHaveBeenCalledOnce();
   });
 
+  it('requires an employee request before HR can authorize a reference-face replacement', async () => {
+    const completedEmployee = {
+      ...employee,
+      status: 'active',
+      enrollmentStatus: 'complete',
+      save: vi.fn(),
+    };
+    models.User.findOne.mockReturnValue(queryResult(completedEmployee));
+
+    await expect(authorizeFaceReenrollment(hr, employee.id)).rejects.toMatchObject({
+      code: 'FACE_REENROLLMENT_REQUEST_REQUIRED',
+      status: 409,
+    });
+    expect(completedEmployee.save).not.toHaveBeenCalled();
+  });
+
   it('immediately revokes a face change authorization', async () => {
     const authorizedEmployee = {
       ...employee,
+      faceReenrollmentRequestedAt: new Date(),
       faceReenrollmentAuthorizedAt: new Date(),
       faceReenrollmentAuthorizedUntil: new Date(Date.now() + 60_000),
       faceReenrollmentAuthorizedBy: hr.id,
@@ -94,6 +112,7 @@ describe('employee membership administration', () => {
     models.User.findOne.mockReturnValue(queryResult(authorizedEmployee));
 
     await expect(revokeFaceReenrollment(hr, employee.id)).resolves.toBe(authorizedEmployee);
+    expect(authorizedEmployee.faceReenrollmentRequestedAt).toBeUndefined();
     expect(authorizedEmployee.faceReenrollmentAuthorizedAt).toBeUndefined();
     expect(authorizedEmployee.faceReenrollmentAuthorizedUntil).toBeUndefined();
     expect(authorizedEmployee.faceReenrollmentAuthorizedBy).toBeUndefined();

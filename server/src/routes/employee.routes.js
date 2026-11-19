@@ -25,6 +25,7 @@ export function createEmployeeRouter({ config, authenticate }) {
   router.get('/wfh-requests', validate(wfhQuerySchema, 'query'), asyncHandler(wfh.employeeList));
   router.post('/wfh-requests', validate(createWfhRequestSchema), asyncHandler(wfh.create));
   router.post('/enrollment/start', asyncHandler(enrollment.start));
+  router.post('/enrollment/replacement-request', asyncHandler(enrollment.requestReplacement));
   router.post('/enrollment/capture', validate(enrollmentCaptureSchema), asyncHandler(enrollment.capture));
   router.post('/enrollment/complete', validate(enrollmentCompleteSchema), asyncHandler(enrollment.complete));
   return router;

@@ -64,6 +64,7 @@ export function EmployeesPage() {
       setAssignmentEmployee((current) => current ? {
         ...current,
         ...employee,
+        faceReenrollmentRequestedAt: undefined,
         faceReenrollmentAuthorizedAt: undefined,
         faceReenrollmentAuthorizedUntil: undefined,
       } : current);
@@ -125,6 +126,7 @@ export function EmployeesPage() {
   const deleteConfirmationValue = deleteTarget?.employeeCode || deleteTarget?.email || '';
   const faceChangeAllowed = assignmentEmployee?.faceReenrollmentAuthorizedUntil
     && new Date(assignmentEmployee.faceReenrollmentAuthorizedUntil).getTime() > Date.now();
+  const faceChangeRequested = Boolean(assignmentEmployee?.faceReenrollmentRequestedAt) && !faceChangeAllowed;
 
   const submitOfficeAssignment = (event) => {
     event.preventDefault();
@@ -220,19 +222,21 @@ export function EmployeesPage() {
             <div className="modal-actions"><Button variant="secondary" onClick={() => setAssignmentEmployee(null)}>Close</Button><Button type="submit" disabled={!selectedOfficeId || assignOffice.isPending}>{assignOffice.isPending ? 'Assigning…' : 'Assign office'}</Button></div>
           </form>
           <div className="member-access-actions">
-            <div><strong>Face profile change</strong><p>For security, an enrolled face can only be replaced after HR grants one-time access. Authorization expires after 24 hours and is consumed when enrollment completes.</p></div>
-            {faceChangeAllowed && <div className="form-success">Face change allowed until {formatDateTime(assignmentEmployee.faceReenrollmentAuthorizedUntil)}.</div>}
-            {authorizeFaceChange.isSuccess && <div className="form-success">The employee can now open Face enrollment and replace their profile.</div>}
+            <div><strong>Original reference face</strong><p>This is the face registered during invitation/account setup and used for daily identity matching. The employee must request a replacement before HR can approve it.</p></div>
+            {faceChangeRequested && <div className="form-alert">Replacement requested {formatDateTime(assignmentEmployee.faceReenrollmentRequestedAt)}. Review and approve or reject this request.</div>}
+            {faceChangeAllowed && <div className="form-success">Reference-face replacement approved until {formatDateTime(assignmentEmployee.faceReenrollmentAuthorizedUntil)}.</div>}
+            {!faceChangeRequested && !faceChangeAllowed && <p className="form-helper">No reference-face replacement request is pending.</p>}
+            {authorizeFaceChange.isSuccess && <div className="form-success">Approved. The employee can repeat the original account-setup face registration.</div>}
             {authorizeFaceChange.isError && <div className="form-alert">{authorizeFaceChange.error.message}</div>}
-            {revokeFaceChange.isSuccess && <div className="form-success">Face change access has been revoked. The employee cannot replace their enrolled face.</div>}
+            {revokeFaceChange.isSuccess && <div className="form-success">The replacement request or approval has been revoked. The original reference face remains active.</div>}
             {revokeFaceChange.isError && <div className="form-alert">{revokeFaceChange.error.message}</div>}
             <div className="member-access-actions__buttons">
-              <Button variant="secondary" onClick={() => authorizeFaceChange.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={authorizeFaceChange.isPending || revokeFaceChange.isPending || assignmentEmployee.enrollmentStatus !== 'complete'}>
-                <Fingerprint size={15} />{authorizeFaceChange.isPending ? 'Authorizing…' : faceChangeAllowed ? 'Extend face change access' : 'Allow face change'}
+              <Button variant="secondary" onClick={() => authorizeFaceChange.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={authorizeFaceChange.isPending || revokeFaceChange.isPending || assignmentEmployee.enrollmentStatus !== 'complete' || (!faceChangeRequested && !faceChangeAllowed)}>
+                <Fingerprint size={15} />{authorizeFaceChange.isPending ? 'Approving…' : faceChangeAllowed ? 'Extend replacement access' : faceChangeRequested ? 'Approve reference replacement' : 'No request pending'}
               </Button>
-              {faceChangeAllowed && (
+              {(faceChangeAllowed || faceChangeRequested) && (
                 <Button variant="danger" onClick={() => revokeFaceChange.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={revokeFaceChange.isPending || authorizeFaceChange.isPending}>
-                  <Ban size={15} />{revokeFaceChange.isPending ? 'Revoking…' : 'Revoke face change access'}
+                  <Ban size={15} />{revokeFaceChange.isPending ? 'Revoking…' : faceChangeAllowed ? 'Revoke replacement approval' : 'Reject replacement request'}
                 </Button>
               )}
             </div>

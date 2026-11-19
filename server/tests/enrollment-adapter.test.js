@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { resolveFaceAdapter, startEnrollment } from '../src/services/enrollment.service.js';
+import { describe, expect, it, vi } from 'vitest';
+
+const writeAudit = vi.hoisted(() => vi.fn());
+vi.mock('../src/services/audit.service.js', () => ({ writeAudit }));
+
+import { requestFaceReenrollment, resolveFaceAdapter, startEnrollment } from '../src/services/enrollment.service.js';
 
 describe('face enrollment adapter selection', () => {
   it('prefers the configured production identity provider', () => {
@@ -26,5 +30,22 @@ describe('face enrollment adapter selection', () => {
       isProduction: true,
       allowDemoFaceAdapter: true,
     })).rejects.toMatchObject({ code: 'FACE_REENROLLMENT_APPROVAL_REQUIRED', status: 403 });
+  });
+
+  it('records an employee request to replace the original reference face', async () => {
+    const user = {
+      id: 'employee-1',
+      organizationId: 'org-1',
+      enrollmentStatus: 'complete',
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(requestFaceReenrollment(user)).resolves.toBe(user);
+    expect(user.faceReenrollmentRequestedAt).toBeInstanceOf(Date);
+    expect(user.save).toHaveBeenCalledOnce();
+    expect(writeAudit).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'face.reenrollment.requested',
+      entityId: user.id,
+    }));
   });
 });
