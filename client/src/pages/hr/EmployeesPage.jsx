@@ -76,6 +76,10 @@ export function EmployeesPage() {
       queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
       setAssignmentEmployee((current) => current ? { ...current, ...employee } : current);
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
+      setAssignmentEmployee((current) => current ? { ...current, teamLoggerStatus: 'failed' } : current);
+    },
   });
   const removeEmployee = useMutation({
     mutationFn: hrService.deleteEmployee,
