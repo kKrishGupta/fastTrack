@@ -161,18 +161,23 @@ export function EmployeesPage() {
         {!!employees.data?.items?.length && (
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Employee</th><th>Department</th><th>Assigned office</th><th>Enrollment</th><th>Account</th><th>Action</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Department</th><th>Assigned office</th><th>Enrollment</th><th>Account</th><th>TeamLogger</th><th>Action</th></tr></thead>
               <tbody>
-                {employees.data.items.map((employee) => (
-                  <tr key={employee.id || employee._id}>
-                    <td><div className="person-cell"><span className="avatar">{initials(employee.name)}</span><div><strong>{employee.name}</strong><span>{employee.employeeCode} · {employee.email}</span></div></div></td>
-                    <td><strong className="cell-primary">{employee.departmentId?.name || 'Unassigned'}</strong><span className="cell-secondary">{employee.jobTitle || 'No job title'}</span></td>
-                    <td>{employee.assignedOffice ? <div className="office-cell"><MapPin size={15} /><div><strong>{employee.assignedOffice.name}</strong><span>{employee.assignedOffice.address || 'Active office'}</span></div></div> : <Badge tone="warning">Not assigned</Badge>}</td>
-                    <td><Badge tone={employee.enrollmentStatus === 'complete' ? 'success' : 'warning'} dot>{titleCase(employee.enrollmentStatus)}</Badge></td>
-                    <td><Badge tone={employee.status === 'active' ? 'success' : employee.status === 'invited' ? 'warning' : 'neutral'}>{titleCase(employee.status)}</Badge></td>
-                    <td><Button size="sm" variant="secondary" onClick={() => openOfficeAssignment(employee)}><Settings2 size={14} />Manage</Button></td>
-                  </tr>
-                ))}
+                {employees.data.items.map((employee) => {
+                  const status = employee.teamLoggerStatus || 'not_configured';
+                  const tone = status === 'provisioned' ? 'success' : status === 'failed' ? 'danger' : status === 'pending' ? 'warning' : 'neutral';
+                  return (
+                    <tr key={employee.id || employee._id}>
+                      <td><div className="person-cell"><span className="avatar">{initials(employee.name)}</span><div><strong>{employee.name}</strong><span>{employee.employeeCode} · {employee.email}</span></div></div></td>
+                      <td><strong className="cell-primary">{employee.departmentId?.name || 'Unassigned'}</strong><span className="cell-secondary">{employee.jobTitle || 'No job title'}</span></td>
+                      <td>{employee.assignedOffice ? <div className="office-cell"><MapPin size={15} /><div><strong>{employee.assignedOffice.name}</strong><span>{employee.assignedOffice.address || 'Active office'}</span></div></div> : <Badge tone="warning">Not assigned</Badge>}</td>
+                      <td><Badge tone={employee.enrollmentStatus === 'complete' ? 'success' : 'warning'} dot>{titleCase(employee.enrollmentStatus)}</Badge></td>
+                      <td><Badge tone={employee.status === 'active' ? 'success' : employee.status === 'invited' ? 'warning' : 'neutral'}>{titleCase(employee.status)}</Badge></td>
+                      <td><Badge tone={tone} dot>{titleCase(status)}</Badge></td>
+                      <td><Button size="sm" variant="secondary" onClick={() => openOfficeAssignment(employee)}><Settings2 size={14} />Manage</Button></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
