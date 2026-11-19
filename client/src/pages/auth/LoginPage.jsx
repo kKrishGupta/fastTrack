@@ -21,6 +21,7 @@ export function LoginPage({ accountType }) {
   }, [navigate, user]);
 
   const updateField = (field) => (event) => {
+    if (error) setError('');
     setForm((current) => ({ ...current, [field]: event.target.value }));
   };
 
@@ -59,7 +60,7 @@ export function LoginPage({ accountType }) {
             {isEmployee ? <UserRound size={17} /> : <Building2 size={17} />}
             <input required minLength={isEmployee ? 2 : 3} autoComplete={isEmployee ? 'username' : 'organization'} value={isEmployee ? form.employeeCode : form.workspaceSlug} onChange={updateField(isEmployee ? 'employeeCode' : 'workspaceSlug')} placeholder={isEmployee ? 'e.g. 112' : 'your-company'} />
           </div>
-          <small>{isEmployee ? 'Enter the employee code assigned by HR, shown on your employee record.' : 'Usually your organization name in lowercase, such as acme-labs.'}</small>
+          <small>{isEmployee ? 'Enter the employee code assigned by HR, shown on your employee record.' : 'Enter the workspace ID created during organization registration (for example, akg), not an employee code.'}</small>
         </label>
         <label className="form-field">
           <span>Work email</span>
@@ -79,12 +80,7 @@ export function LoginPage({ accountType }) {
         </Button>
         {isEmployee ? (
           <p className="login-help">Your account must first be activated through the invitation sent by HR.</p>
-        ) : (
-          <>
-            <p className="auth-switch">Setting up a new organization? <Link to="/organization/register">Create a workspace</Link></p>
-            <p className="login-help">Employee? <Link to="/employee/login">Go to employee sign in</Link></p>
-          </>
-        )}
+        ) : <p className="auth-switch">Setting up a new organization? <Link to="/organization/register">Create a workspace</Link></p>}
       </form>
     </AuthShell>
   );

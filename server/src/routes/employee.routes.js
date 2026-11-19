@@ -6,6 +6,7 @@ import { listForEmployee } from '../controllers/office.controller.js';
 import { requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { ApiError } from '../utils/api-error.js';
 import { acceptInvitationSchema, employeeLoginSchema, invitationTokenParamsSchema } from '../validators/auth.schemas.js';
 import { enrollmentCaptureSchema, enrollmentCompleteSchema } from '../validators/enrollment.schemas.js';
 import * as wfh from '../controllers/wfh.controller.js';
@@ -15,7 +16,17 @@ export function createEmployeeRouter({ config, authenticate }) {
   const router = Router();
   const controller = createAuthController(config);
   const enrollment = createEnrollmentController(config);
-  const loginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 10, standardHeaders: true, legacyHeaders: false });
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60_000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res, next) => next(new ApiError(
+      429,
+      'AUTH_RATE_LIMITED',
+      'Too many sign-in attempts. Wait 15 minutes before trying again.',
+    )),
+  });
 
   router.post('/login', loginLimiter, validate(employeeLoginSchema), asyncHandler(controller.employeeLogin));
   router.get('/invitations/:token', validate(invitationTokenParamsSchema, 'params'), asyncHandler(controller.invitation));

@@ -68,6 +68,22 @@ describe('Express application', () => {
     expect(response.body.error.code).toBe('CORS_ORIGIN_REJECTED');
   });
 
+  it('returns a structured message when organization sign-in is rate limited', async () => {
+    const isolatedApp = createApp(config);
+    let response;
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      response = await request(isolatedApp)
+        .post('/api/organization/login')
+        .set('Origin', config.clientOrigin)
+        .send({});
+    }
+    expect(response.status).toBe(429);
+    expect(response.body.error).toEqual({
+      code: 'AUTH_RATE_LIMITED',
+      message: 'Too many sign-in attempts. Wait 15 minutes before trying again.',
+    });
+  });
+
   it('exposes organization registration under the organization namespace', async () => {
     const response = await request(app)
       .post('/api/organization/register')
