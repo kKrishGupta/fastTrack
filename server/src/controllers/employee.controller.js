@@ -1,4 +1,4 @@
-import { authorizeFaceReenrollment, deleteEmployee, inviteEmployee, listEmployees, revokeEmployeeInvitations } from '../services/employee.service.js';
+import { authorizeFaceReenrollment, deleteEmployee, inviteEmployee, listEmployees, revokeEmployeeInvitations, revokeFaceReenrollment } from '../services/employee.service.js';
 import { writeAudit } from '../services/audit.service.js';
 import { serializeUser } from '../utils/serializers.js';
 
@@ -39,6 +39,18 @@ export async function allowFaceReenrollment(req, res) {
   req.app.get('io')?.to(`user:${employee.id}`).emit('face:reenrollment_authorized', {
     authorizedUntil: employee.faceReenrollmentAuthorizedUntil,
   });
+  res.json({ item: serializeUser(employee) });
+}
+
+export async function denyFaceReenrollment(req, res) {
+  const employee = await revokeFaceReenrollment(req.user, req.validated.params.id);
+  await writeAudit({
+    user: req.user,
+    action: 'face.reenrollment.authorization_revoked',
+    entityType: 'User',
+    entityId: employee.id,
+  });
+  req.app.get('io')?.to(`user:${employee.id}`).emit('face:reenrollment_revoked');
   res.json({ item: serializeUser(employee) });
 }
 

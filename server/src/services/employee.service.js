@@ -126,6 +126,15 @@ export async function authorizeFaceReenrollment(user, employeeId) {
   return employee;
 }
 
+export async function revokeFaceReenrollment(user, employeeId) {
+  const employee = await findOrganizationEmployee(user, employeeId);
+  employee.faceReenrollmentAuthorizedAt = undefined;
+  employee.faceReenrollmentAuthorizedUntil = undefined;
+  employee.faceReenrollmentAuthorizedBy = undefined;
+  await employee.save();
+  return employee;
+}
+
 export async function deleteEmployee(user, employeeId) {
   const session = await User.startSession();
   let deletedEmployee;

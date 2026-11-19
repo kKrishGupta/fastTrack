@@ -57,6 +57,18 @@ export function EmployeesPage() {
       setAssignmentEmployee((current) => current ? { ...current, ...employee } : current);
     },
   });
+  const revokeFaceChange = useMutation({
+    mutationFn: hrService.revokeFaceReenrollment,
+    onSuccess: (employee) => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
+      setAssignmentEmployee((current) => current ? {
+        ...current,
+        ...employee,
+        faceReenrollmentAuthorizedAt: undefined,
+        faceReenrollmentAuthorizedUntil: undefined,
+      } : current);
+    },
+  });
   const removeEmployee = useMutation({
     mutationFn: hrService.deleteEmployee,
     onSuccess: () => {
@@ -98,6 +110,7 @@ export function EmployeesPage() {
     assignOffice.reset();
     revokeInvitation.reset();
     authorizeFaceChange.reset();
+    revokeFaceChange.reset();
     setAssignmentEmployee(employee);
     setSelectedOfficeId(employee.assignedOffice?._id || employee.assignedOffice?.id || '');
   };
@@ -211,10 +224,17 @@ export function EmployeesPage() {
             {faceChangeAllowed && <div className="form-success">Face change allowed until {formatDateTime(assignmentEmployee.faceReenrollmentAuthorizedUntil)}.</div>}
             {authorizeFaceChange.isSuccess && <div className="form-success">The employee can now open Face enrollment and replace their profile.</div>}
             {authorizeFaceChange.isError && <div className="form-alert">{authorizeFaceChange.error.message}</div>}
+            {revokeFaceChange.isSuccess && <div className="form-success">Face change access has been revoked. The employee cannot replace their enrolled face.</div>}
+            {revokeFaceChange.isError && <div className="form-alert">{revokeFaceChange.error.message}</div>}
             <div className="member-access-actions__buttons">
-              <Button variant="secondary" onClick={() => authorizeFaceChange.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={authorizeFaceChange.isPending || assignmentEmployee.enrollmentStatus !== 'complete'}>
+              <Button variant="secondary" onClick={() => authorizeFaceChange.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={authorizeFaceChange.isPending || revokeFaceChange.isPending || assignmentEmployee.enrollmentStatus !== 'complete'}>
                 <Fingerprint size={15} />{authorizeFaceChange.isPending ? 'Authorizing…' : faceChangeAllowed ? 'Extend face change access' : 'Allow face change'}
               </Button>
+              {faceChangeAllowed && (
+                <Button variant="danger" onClick={() => revokeFaceChange.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={revokeFaceChange.isPending || authorizeFaceChange.isPending}>
+                  <Ban size={15} />{revokeFaceChange.isPending ? 'Revoking…' : 'Revoke face change access'}
+                </Button>
+              )}
             </div>
           </div>
           <div className="member-access-actions">

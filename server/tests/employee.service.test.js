@@ -25,7 +25,7 @@ const models = vi.hoisted(() => {
 
 vi.mock('../src/models.js', () => models);
 
-import { authorizeFaceReenrollment, deleteEmployee, revokeEmployeeInvitations } from '../src/services/employee.service.js';
+import { authorizeFaceReenrollment, deleteEmployee, revokeEmployeeInvitations, revokeFaceReenrollment } from '../src/services/employee.service.js';
 
 function queryResult(value) {
   return {
@@ -81,6 +81,23 @@ describe('employee membership administration', () => {
     expect(completedEmployee.faceReenrollmentAuthorizedUntil).toBeInstanceOf(Date);
     expect(completedEmployee.faceReenrollmentAuthorizedUntil.getTime() - completedEmployee.faceReenrollmentAuthorizedAt.getTime()).toBe(24 * 60 * 60 * 1000);
     expect(completedEmployee.save).toHaveBeenCalledOnce();
+  });
+
+  it('immediately revokes a face change authorization', async () => {
+    const authorizedEmployee = {
+      ...employee,
+      faceReenrollmentAuthorizedAt: new Date(),
+      faceReenrollmentAuthorizedUntil: new Date(Date.now() + 60_000),
+      faceReenrollmentAuthorizedBy: hr.id,
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+    models.User.findOne.mockReturnValue(queryResult(authorizedEmployee));
+
+    await expect(revokeFaceReenrollment(hr, employee.id)).resolves.toBe(authorizedEmployee);
+    expect(authorizedEmployee.faceReenrollmentAuthorizedAt).toBeUndefined();
+    expect(authorizedEmployee.faceReenrollmentAuthorizedUntil).toBeUndefined();
+    expect(authorizedEmployee.faceReenrollmentAuthorizedBy).toBeUndefined();
+    expect(authorizedEmployee.save).toHaveBeenCalledOnce();
   });
 
   it('purges employee-owned records and writes the deletion audit in one transaction', async () => {
