@@ -78,10 +78,7 @@ export function LoginPage({ accountType }) {
           {!submitting && <ArrowRight size={18} />}
         </Button>
         {isEmployee ? (
-          <>
-            <p className="auth-switch">Organization administrator? <Link to="/organization/login">HR sign in</Link></p>
-            <p className="login-help">Your account must first be activated through the invitation sent by HR.</p>
-          </>
+          <p className="login-help">Your account must first be activated through the invitation sent by HR.</p>
         ) : (
           <>
             <p className="auth-switch">Setting up a new organization? <Link to="/organization/register">Create a workspace</Link></p>
