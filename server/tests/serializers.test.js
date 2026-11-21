@@ -10,10 +10,14 @@ describe('public serializers', () => {
       role: 'Employee',
       passwordHash: 'secret-hash',
       organizationId: '507f1f77bcf86cd799439012',
+      teamLoggerStatus: 'failed',
+      teamLoggerUserId: 'legacy-provider-id',
     });
     expect(result.id).toBe('507f1f77bcf86cd799439011');
     expect(result).not.toHaveProperty('passwordHash');
     expect(result).not.toHaveProperty('organizationId');
+    expect(result).not.toHaveProperty('teamLoggerStatus');
+    expect(result).not.toHaveProperty('teamLoggerUserId');
   });
 
   it('escapes user input before building a Mongo regular expression', () => {

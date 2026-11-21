@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Ban, Check, CheckCircle2, Copy, Fingerprint, MailPlus, MapPin, Plus, Search, Settings2, Trash2, TriangleAlert, UserRound } from 'lucide-react';
+import { Activity, Ban, Check, CheckCircle2, Copy, Fingerprint, MailPlus, MapPin, Plus, Search, Settings2, Trash2, TriangleAlert, UserRound } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +14,8 @@ import { formatDateTime, initials, titleCase } from '../../utils/formatters';
 const emptyForm = { name: '', email: '', employeeCode: '', jobTitle: '', departmentId: '' };
 
 export function EmployeesPage() {
+  const navigate = useNavigate();
+  const openActivity = (employee) => navigate(`/hr/monitoring?employeeId=${encodeURIComponent(employee.id || employee._id)}`);
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -70,17 +73,6 @@ export function EmployeesPage() {
       } : current);
     },
   });
-  const provisionTeamLogger = useMutation({
-    mutationFn: hrService.provisionTeamLoggerEmployee,
-    onSuccess: (employee) => {
-      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
-      setAssignmentEmployee((current) => current ? { ...current, ...employee } : current);
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
-      setAssignmentEmployee((current) => current ? { ...current, teamLoggerStatus: 'failed' } : current);
-    },
-  });
   const removeEmployee = useMutation({
     mutationFn: hrService.deleteEmployee,
     onSuccess: () => {
@@ -123,7 +115,6 @@ export function EmployeesPage() {
     revokeInvitation.reset();
     authorizeFaceChange.reset();
     revokeFaceChange.reset();
-    provisionTeamLogger.reset();
     setAssignmentEmployee(employee);
     setSelectedOfficeId(employee.assignedOffice?._id || employee.assignedOffice?.id || '');
   };
@@ -139,8 +130,6 @@ export function EmployeesPage() {
   const faceChangeAllowed = assignmentEmployee?.faceReenrollmentAuthorizedUntil
     && new Date(assignmentEmployee.faceReenrollmentAuthorizedUntil).getTime() > Date.now();
   const faceChangeRequested = Boolean(assignmentEmployee?.faceReenrollmentRequestedAt) && !faceChangeAllowed;
-  const teamLoggerStatus = assignmentEmployee?.teamLoggerStatus || 'not_configured';
-  const teamLoggerTone = teamLoggerStatus === 'provisioned' ? 'success' : teamLoggerStatus === 'failed' ? 'danger' : teamLoggerStatus === 'pending' ? 'warning' : 'neutral';
 
   const submitOfficeAssignment = (event) => {
     event.preventDefault();
@@ -165,11 +154,9 @@ export function EmployeesPage() {
         {!!employees.data?.items?.length && (
           <div className="table-wrap">
             <table className="data-table">
-              <thead><tr><th>Employee</th><th>Department</th><th>Assigned office</th><th>Enrollment</th><th>Account</th><th>TeamLogger</th><th>Action</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Department</th><th>Assigned office</th><th>Enrollment</th><th>Account</th><th>ActivityWatch</th><th>Action</th></tr></thead>
               <tbody>
                 {employees.data.items.map((employee) => {
-                  const status = employee.teamLoggerStatus || 'not_configured';
-                  const tone = status === 'provisioned' ? 'success' : status === 'failed' ? 'danger' : status === 'pending' ? 'warning' : 'neutral';
                   return (
                     <tr key={employee.id || employee._id}>
                       <td><div className="person-cell"><span className="avatar">{initials(employee.name)}</span><div><strong>{employee.name}</strong><span>{employee.employeeCode} · {employee.email}</span></div></div></td>
@@ -177,7 +164,7 @@ export function EmployeesPage() {
                       <td>{employee.assignedOffice ? <div className="office-cell"><MapPin size={15} /><div><strong>{employee.assignedOffice.name}</strong><span>{employee.assignedOffice.address || 'Active office'}</span></div></div> : <Badge tone="warning">Not assigned</Badge>}</td>
                       <td><Badge tone={employee.enrollmentStatus === 'complete' ? 'success' : 'warning'} dot>{titleCase(employee.enrollmentStatus)}</Badge></td>
                       <td><Badge tone={employee.status === 'active' ? 'success' : employee.status === 'invited' ? 'warning' : 'neutral'}>{titleCase(employee.status)}</Badge></td>
-                      <td><Badge tone={tone} dot>{titleCase(status)}</Badge></td>
+                      <td><Button size="sm" variant="secondary" onClick={() => openActivity(employee)}><Activity size={14} />View activity</Button></td>
                       <td><Button size="sm" variant="secondary" onClick={() => openOfficeAssignment(employee)}><Settings2 size={14} />Manage</Button></td>
                     </tr>
                   );
@@ -261,18 +248,9 @@ export function EmployeesPage() {
             </div>
           </div>
           <div className="member-access-actions">
-            <div><strong>TeamLogger monitoring</strong><p>The employee is provisioned only after activating this FaceTrack account. TeamLogger credentials and API keys are never exposed in the browser.</p></div>
-            <div><Badge tone={teamLoggerTone} dot>{titleCase(teamLoggerStatus)}</Badge></div>
-            {assignmentEmployee.teamLoggerProvisionedAt && <div className="form-success">Linked {formatDateTime(assignmentEmployee.teamLoggerProvisionedAt)}.</div>}
-            {provisionTeamLogger.isSuccess && <div className="form-success">TeamLogger employee provisioning completed.</div>}
-            {provisionTeamLogger.isError && <div className="form-alert">{provisionTeamLogger.error.message}</div>}
-            {teamLoggerStatus !== 'provisioned' && (
-              <div className="member-access-actions__buttons">
-                <Button variant="secondary" onClick={() => provisionTeamLogger.mutate(assignmentEmployee.id || assignmentEmployee._id)} disabled={provisionTeamLogger.isPending || assignmentEmployee.status !== 'active'}>
-                  <Settings2 size={15} />{provisionTeamLogger.isPending ? 'Connecting…' : teamLoggerStatus === 'failed' ? 'Retry TeamLogger provisioning' : 'Provision in TeamLogger'}
-                </Button>
-              </div>
-            )}
+            <div><strong>ActivityWatch monitoring</strong><p>The employee connects their computer from Activity monitoring in their own workspace after giving consent. Review shared application activity, website domains and active/away time, or pause and revoke connected devices.</p></div>
+            {assignmentEmployee.status !== 'active' && <p className="form-helper">The employee must activate their FaceTrack account before pairing a device.</p>}
+            <div className="member-access-actions__buttons"><Button variant="secondary" onClick={() => openActivity(assignmentEmployee)}><Activity size={15} />View ActivityWatch activity</Button></div>
           </div>
           <div className="member-access-actions">
             <div><strong>Access and membership</strong><p>Revoke an unused activation link or permanently remove this member and their records.</p></div>

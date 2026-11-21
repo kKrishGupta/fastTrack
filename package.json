@@ -12,7 +12,11 @@
     "start": "npm run start --workspace server",
     "build": "npm run build --workspace client",
     "test": "npm run test --workspace server",
-    "check": "npm run test && npm run build"
+    "check": "npm run test && npm run test:agent && npm run build",
+    "test:agent": "node --test facetrack-sync-agent/activitywatch.test.mjs",
+    "agent:preview": "node facetrack-sync-agent/index.mjs preview",
+    "agent:pair": "node facetrack-sync-agent/index.mjs pair",
+    "agent:start": "node facetrack-sync-agent/index.mjs run"
   },
   "engines": {
     "node": ">=20.19"

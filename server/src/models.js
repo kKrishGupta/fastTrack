@@ -79,14 +79,6 @@ const userSchema = new Schema(
     faceReenrollmentAuthorizedAt: Date,
     faceReenrollmentAuthorizedUntil: Date,
     faceReenrollmentAuthorizedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-    teamLoggerStatus: {
-      type: String,
-      enum: ['not_configured', 'pending', 'provisioned', 'failed'],
-      default: 'not_configured',
-    },
-    teamLoggerUserId: { type: String, trim: true },
-    teamLoggerProvisionedAt: Date,
-    teamLoggerLastAttemptAt: Date,
   },
   schemaOptions,
 );

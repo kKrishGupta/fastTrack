@@ -11,3 +11,5 @@ test-results
 Thumbs.db
 .vscode/
 .idea/
+facetrack-sync-agent/.state.json
+facetrack-sync-agent/.state.json.tmp

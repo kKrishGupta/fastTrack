@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import { EmployeeInvitation, Organization, User } from '../models.js';
 import { ApiError } from '../utils/api-error.js';
 import { serializeOrganization } from '../utils/serializers.js';
-import { provisionTeamLoggerEmployee } from './teamlogger.service.js';
 
 function signAccessToken(user, config) {
   return jwt.sign(
@@ -174,17 +173,6 @@ export async function acceptInvitation({ token, password, biometricConsent }, co
   invitation.active = false;
   invitation.acceptedAt = new Date();
   await invitation.save();
-
-  if (config.teamLoggerEnabled) {
-    try {
-      await provisionTeamLoggerEmployee(user, config);
-    } catch (error) {
-      console.warn('TeamLogger employee provisioning will require an HR retry', {
-        code: error.code ?? 'TEAMLOGGER_PROVISIONING_FAILED',
-        employeeId: user.id,
-      });
-    }
-  }
 
   return { user, organization, token: signAccessToken(user, config) };
 }

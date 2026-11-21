@@ -18,7 +18,8 @@ import { ApiError } from '../utils/api-error.js';
 import { escapeRegExp, serializeUser } from '../utils/serializers.js';
 import { sendEmployeeInvitation } from './email.service.js';
 import { assignmentIsValid } from './geofence.service.js';
-import { provisionTeamLoggerEmployee } from './teamlogger.service.js';
+import { MonitoringDevice } from '../models/MonitoringDevice.js';
+import { ActivityEvent } from '../models/ActivityEvent.js';
 
 export async function listEmployees(user, filters) {
   const query = { organizationId: user.organizationId, role: 'Employee' };
@@ -140,14 +141,6 @@ export async function revokeFaceReenrollment(user, employeeId) {
   return employee;
 }
 
-export async function provisionEmployeeInTeamLogger(user, employeeId, config) {
-  const employee = await findOrganizationEmployee(user, employeeId);
-  if (employee.status !== 'active') {
-    throw new ApiError(409, 'EMPLOYEE_ACCOUNT_INACTIVE', 'The employee must activate their account before TeamLogger provisioning');
-  }
-  return provisionTeamLoggerEmployee(employee, config);
-}
-
 export async function deleteEmployee(user, employeeId) {
   const session = await User.startSession();
   let deletedEmployee;
@@ -169,6 +162,8 @@ export async function deleteEmployee(user, employeeId) {
       await AttendanceChallenge.deleteMany(filter, { session });
       await VerificationEvent.deleteMany(filter, { session });
       await Attendance.deleteMany(filter, { session });
+        await ActivityEvent.deleteMany(filter, { session });
+        await MonitoringDevice.deleteMany(filter, { session });
       await AuditLog.deleteMany({
         organizationId: user.organizationId,
         $or: [

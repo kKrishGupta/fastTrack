@@ -4,6 +4,8 @@ FaceTrack Pro is a local MERN attendance application with organization-scoped RB
 
 Docker is intentionally not included at this stage. Run MongoDB, the Express API, and the Vite client directly on your machine.
 
+ActivityWatch monitoring setup, visible sync-agent commands and data handling are documented in [docs/activitywatch.md](docs/activitywatch.md).
+
 ## Prerequisites
 
 - Node.js 20.19 or newer (Node 22 LTS is recommended)

@@ -1,0 +1,39 @@
+.monitoring-page { display: grid; gap: 22px; }
+.monitoring-card { padding: 24px; min-width: 0; }
+.monitoring-card h2 { font-size: 18px; margin: 0 0 14px; }
+.monitoring-disclosure { display: flex; gap: 16px; background: #f1f7ff; }
+.monitoring-disclosure > svg { flex-shrink: 0; color: #2563eb; }
+.monitoring-disclosure p, .monitoring-muted { color: #64748b; line-height: 1.65; font-size: 14px; }
+.monitoring-disclosure p + p { margin-top: 10px; }
+.monitoring-connect { display: grid; gap: 16px; max-width: 720px; }
+.monitoring-connect label, .monitoring-toolbar label { display: grid; gap: 7px; font-size: 14px; }
+.monitoring-connect input:not([type=checkbox]), .monitoring-toolbar select { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: white; color: #0f172a; }
+.monitoring-connect .monitoring-checkbox { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+.monitoring-checkbox input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; }
+.monitoring-connect .button { justify-self: start; }
+.monitoring-pairing { display: grid; gap: 12px; background: #f8fafc; padding: 20px; border: 1px solid #cbd5e1; border-radius: 10px; margin-top: 20px; }
+.monitoring-pairing code { overflow-wrap: anywhere; font-size: 16px; }
+.monitoring-pairing pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.monitoring-pairing p { font-size: 14px; line-height: 1.6; }
+.monitoring-toolbar, .monitoring-toolbar > div, .monitoring-toolbar h2, .monitoring-row { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+.monitoring-toolbar h2 { font-size: 21px; }
+.monitoring-toolbar > div { align-items: flex-end; flex-wrap: wrap; }
+.monitoring-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.monitoring-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.monitoring-stats strong { display: block; font-size: 30px; margin-top: 10px; }
+.monitoring-stats span { color: #64748b; font-size: 14px; }
+.monitoring-rankings { display: grid; gap: 18px; }
+.monitoring-row { font-size: 14px; }
+.monitoring-row strong { overflow-wrap: anywhere; }
+.monitoring-row span { flex-shrink: 0; }
+.monitoring-bar { height: 6px; background: #e2e8f0; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.monitoring-bar span { display: block; height: 100%; background: #2563eb; border-radius: 4px; }
+.monitoring-devices article { display: flex; align-items: center; gap: 14px; padding: 18px 0; border-bottom: 1px solid #e2e8f0; }
+.monitoring-device-info { display: grid; gap: 5px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.monitoring-device-info span, .monitoring-device-info small { font-size: 13px; color: #64748b; }
+.monitoring-actions { display: flex; gap: 8px; }
+.monitoring-table-wrap { overflow-x: auto; }
+.monitoring-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.monitoring-table th, .monitoring-table td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+.monitoring-table td small { display: block; color: #64748b; max-width: 350px; overflow-wrap: anywhere; }
+@media (max-width: 760px) { .monitoring-grid, .monitoring-stats { grid-template-columns: 1fr; } .monitoring-toolbar { align-items: flex-start; flex-direction: column; } .monitoring-devices article { flex-wrap: wrap; } .monitoring-device-info { flex-basis: 60%; } .monitoring-card { padding: 18px; } }

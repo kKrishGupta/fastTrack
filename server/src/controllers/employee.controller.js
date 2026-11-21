@@ -1,4 +1,4 @@
-import { authorizeFaceReenrollment, deleteEmployee, inviteEmployee, listEmployees, provisionEmployeeInTeamLogger, revokeEmployeeInvitations, revokeFaceReenrollment } from '../services/employee.service.js';
+import { authorizeFaceReenrollment, deleteEmployee, inviteEmployee, listEmployees, revokeEmployeeInvitations, revokeFaceReenrollment } from '../services/employee.service.js';
 import { writeAudit } from '../services/audit.service.js';
 import { serializeUser } from '../utils/serializers.js';
 
@@ -51,22 +51,6 @@ export async function denyFaceReenrollment(req, res) {
     entityId: employee.id,
   });
   req.app.get('io')?.to(`user:${employee.id}`).emit('face:reenrollment_revoked');
-  res.json({ item: serializeUser(employee) });
-}
-
-export async function provisionTeamLogger(req, res) {
-  const employee = await provisionEmployeeInTeamLogger(
-    req.user,
-    req.validated.params.id,
-    req.app.get('config'),
-  );
-  await writeAudit({
-    user: req.user,
-    action: 'teamlogger.employee.provisioned',
-    entityType: 'User',
-    entityId: employee.id,
-    metadata: { teamLoggerUserId: employee.teamLoggerUserId },
-  });
   res.json({ item: serializeUser(employee) });
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Building2, CalendarCheck, House, LayoutDashboard, LogOut, MapPin, Menu, Users, X } from 'lucide-react';
+import { Activity, Building2, CalendarCheck, House, LayoutDashboard, LogOut, MapPin, Menu, Users, X } from 'lucide-react';
 import { Brand } from '../common/Brand';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -14,6 +14,7 @@ const navigation = [
   { label: 'Office locations', to: '/hr/offices', icon: MapPin },
   { label: 'Attendance', to: '/hr/attendance', icon: CalendarCheck },
   { label: 'WFH approvals', to: '/hr/wfh-requests', icon: House },
+  { label: 'Activity monitoring', to: '/hr/monitoring', icon: Activity },
 ];
 
 export function AdminLayout() {

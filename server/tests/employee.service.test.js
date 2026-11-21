@@ -24,8 +24,12 @@ const models = vi.hoisted(() => {
 });
 
 vi.mock('../src/models.js', () => models);
+vi.mock('../src/models/MonitoringDevice.js', () => ({ MonitoringDevice: { deleteMany: vi.fn() } }));
+vi.mock('../src/models/ActivityEvent.js', () => ({ ActivityEvent: { deleteMany: vi.fn() } }));
 
 import { authorizeFaceReenrollment, deleteEmployee, revokeEmployeeInvitations, revokeFaceReenrollment } from '../src/services/employee.service.js';
+import { MonitoringDevice } from '../src/models/MonitoringDevice.js';
+import { ActivityEvent } from '../src/models/ActivityEvent.js';
 
 function queryResult(value) {
   return {
@@ -139,6 +143,8 @@ describe('employee membership administration', () => {
       models.AttendanceChallenge,
       models.VerificationEvent,
       models.Attendance,
+      MonitoringDevice,
+      ActivityEvent,
     ]) {
       expect(model.deleteMany).toHaveBeenCalledWith(employeeFilter, { session });
     }

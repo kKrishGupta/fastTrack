@@ -5,6 +5,7 @@ import { createEmployeeRouter } from './employee.routes.js';
 import { createHrRouter } from './hr.routes.js';
 import { createOrganizationRouter } from './organization.routes.js';
 import { createSessionRouter } from './session.routes.js';
+import { createMonitoringRouter } from './monitoring.routes.js';
 
 export function createApiRouter(config) {
   const router = Router();
@@ -16,5 +17,6 @@ export function createApiRouter(config) {
   router.use('/hr', createHrRouter(dependencies));
   router.use('/employee', createEmployeeRouter(dependencies));
   router.use('/attendance', createAttendanceRouter(dependencies));
+  router.use('/monitoring', createMonitoringRouter(dependencies));
   return router;
 }

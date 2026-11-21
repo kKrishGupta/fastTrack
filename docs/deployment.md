@@ -42,16 +42,12 @@ Configure these environment variables in the Render dashboard rather than upload
 - `FACE_EVIDENCE_RETENTION_DAYS=30`
 - `RESEND_API_KEY` from the Resend API Keys page when invitation email is enabled
 - `RESEND_FROM_EMAIL=attendance@your-domain.example`, using a sender on a domain verified in Resend
-- `TEAMLOGGER_ENABLED=true` after TeamLogger enables integration access for the employer account
-- `TEAMLOGGER_API_BASE_URL=https://api2.teamlogger.com`
-- `TEAMLOGGER_API_KEY` as a server-only Render secret; never create a `VITE_TEAMLOGGER_*` variable
-- `TEAMLOGGER_REQUEST_TIMEOUT_MS=10000`
 
 Render supplies `PORT`; do not hardcode a production port. Every production origin must use HTTPS and must be listed exactly, without a path. If more than one frontend origin is needed, separate them with commas in `ALLOWED_ORIGINS`.
 
 Invitation email uses Resend's HTTPS API rather than SMTP. Remove the retired `GMAIL_USER` and `GMAIL_APP_PASSWORD` variables from Render. Resend's testing sender is suitable only for initial account testing; verify a domain and use an address on that domain before sending invitations to employees.
 
-When TeamLogger is enabled, accepting a FaceTrack employee invitation triggers server-side provisioning. A provider failure does not roll back the employee's FaceTrack activation; HR can retry from **Employees > Manage > TeamLogger monitoring**. The integration generates a separate random TeamLogger password and never sends the FaceTrack password to TeamLogger. Confirm with TeamLogger whether its create-user flow sends an onboarding email or requires the employee to use password reset before signing in to the desktop agent.
+ActivityWatch replaces TeamLogger monitoring. Account activation does not provision a monitoring account or enroll a device. Employees pair their computer from **Activity monitoring** after giving consent; HR can open employee reports from **Employees > Manage > ActivityWatch monitoring**. Deploy both the updated frontend and API, then follow [ActivityWatch setup](activitywatch.md). No provider API key is required. Retired `TEAMLOGGER_*` settings are ignored and can be removed from hosting configuration. Existing legacy database fields are no longer returned by the API; no historical database records are rewritten by this change.
 
 The AWS IAM identity needs only these Rekognition actions for this implementation:
 
