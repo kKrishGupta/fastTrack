@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 const mocks = vi.hoisted(() => ({
   device: { create: vi.fn(), findOneAndUpdate: vi.fn(), findOne: vi.fn(), updateOne: vi.fn(), find: vi.fn() },
   event: { bulkWrite: vi.fn(), aggregate: vi.fn() },
-  employee: { exists: vi.fn(), findOne: vi.fn() },
+  employee: { exists: vi.fn(), findOne: vi.fn(), find: vi.fn() },
   organization: { exists: vi.fn(), findOne: vi.fn() },
 }));
 vi.mock('../src/models/MonitoringDevice.js', () => ({ MonitoringDevice: mocks.device }));
@@ -15,7 +15,7 @@ vi.mock('../src/services/audit.service.js', () => ({ writeAudit: vi.fn() }));
 
 import { createApp } from '../src/app.js';
 import { activityEventSchema } from '../src/validators/monitoring.schemas.js';
-import { activityReport, authenticateDevice, changeDeviceState, deviceScope, enrollDevice, hashSecret, ingestActivity, prepareEvents } from '../src/services/monitoring.service.js';
+import { activityReport, authenticateDevice, changeDeviceState, deviceScope, enrollDevice, hashSecret, ingestActivity, listDevices, prepareEvents } from '../src/services/monitoring.service.js';
 
 const config = { clientOrigin: 'http://localhost:5173', jwtSecret: 'monitoring-test-secret-at-least-32-characters', trustProxy: false };
 const employee = { _id: '111111111111111111111111', organizationId: '222222222222222222222222', role: 'Employee' };
@@ -92,6 +92,15 @@ describe('monitoring security and storage', () => {
     await activityReport(employee, { start: new Date(Date.now() - 86400_000).toISOString(), end: new Date().toISOString(), employeeId: '444444444444444444444444' });
     expect(mocks.event.aggregate.mock.calls[0][0][0].$match).toMatchObject(deviceScope(employee));
   });
+  it('filters devices in MongoDB by employee without allowing employees to change their own scope', async () => {
+    const chain = { select: vi.fn().mockReturnThis(), populate: vi.fn().mockReturnThis(), sort: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue([]) };
+    mocks.device.find.mockReturnValue(chain);
+    const selected = '444444444444444444444444';
+    await listDevices({ ...employee, role: 'HR' }, { employeeId: selected });
+    expect(mocks.device.find).toHaveBeenLastCalledWith({ organizationId: employee.organizationId, employeeId: selected });
+    await listDevices(employee, { employeeId: selected });
+    expect(mocks.device.find).toHaveBeenLastCalledWith(deviceScope(employee));
+  });
 });
 
 describe('monitoring HTTP endpoints', () => {
@@ -99,7 +108,7 @@ describe('monitoring HTTP endpoints', () => {
   it('identifies the deployed ActivityWatch protocol without exposing activity or credentials', async () => {
     const response = await request(app).get('/api/monitoring/info');
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ provider: 'ActivityWatch', protocolVersion: 1, retentionDays: 30 });
+    expect(response.body).toEqual({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.1.0', retentionDays: 30 });
     expect(response.headers['cache-control']).toBe('no-store');
   });
   it('requires authentication for the dashboard and agent upload', async () => {
@@ -144,5 +153,24 @@ describe('monitoring HTTP endpoints', () => {
     expect(oversized.status).toBe(400);
     const report = await request(app).get('/api/monitoring/report').set('Cookie', sessionCookie()).query({ start: '2026-01-01T00:00:00Z', end: '2026-02-01T00:00:00Z' });
     expect(report.status).toBe(400);
+  });
+  it('requires device authentication and validates the watcher health heartbeat', async () => {
+    expect((await request(app).post('/api/monitoring/agent/heartbeat').send({})).status).toBe(401);
+    const invalid = await request(app).post('/api/monitoring/agent/heartbeat').set('Authorization', `Bearer ${token}`).send({ activityWatchAvailable: true, watchers: ['arbitrary-data'] });
+    expect(invalid.status).toBe(400);
+    const valid = await request(app).post('/api/monitoring/agent/heartbeat').set('Authorization', `Bearer ${token}`).send({ activityWatchAvailable: true, watchers: ['currentwindow', 'afkstatus'] });
+    expect(valid.status).toBe(200);
+    expect(mocks.device.updateOne).toHaveBeenLastCalledWith({ _id: device._id }, { $set: { lastSeenAt: expect.any(Date), activityWatchAvailable: true, watchers: ['currentwindow', 'afkstatus'] } });
+  });
+  it('restricts employee directory access to HR in the same organization', async () => {
+    const forbidden = await request(app).get('/api/monitoring/employees').set('Cookie', sessionCookie());
+    expect(forbidden.status).toBe(403);
+    const chain = { select: vi.fn().mockReturnThis(), sort: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue([{ _id: employee._id, name: 'Test Employee' }]) };
+    mocks.employee.find.mockReturnValue(chain);
+    mocks.employee.findOne.mockResolvedValue({ ...employee, role: 'HR' });
+    const allowed = await request(app).get('/api/monitoring/employees').set('Cookie', sessionCookie());
+    expect(allowed.status).toBe(200);
+    expect(allowed.body.items[0].name).toBe('Test Employee');
+    expect(mocks.employee.find).toHaveBeenCalledWith({ organizationId: employee.organizationId, role: 'Employee', active: true });
   });
 });

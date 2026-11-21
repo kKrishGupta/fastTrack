@@ -12,6 +12,11 @@ export const enrollSchema = z.object({
 });
 export const deviceStateSchema = z.object({ status: z.enum(['active', 'paused', 'revoked']) });
 export const agentStateSchema = z.object({ status: z.enum(['active', 'paused']) });
+export const deviceQuerySchema = z.object({ employeeId: id.optional() });
+export const heartbeatSchema = z.object({
+  activityWatchAvailable: z.boolean(),
+  watchers: z.array(z.enum(['currentwindow', 'afkstatus', 'web.tab.current'])).max(3),
+});
 export const activityEventSchema = z.object({
   bucketId: z.string().min(1).max(300),
   sourceId: z.string().min(1).max(200),

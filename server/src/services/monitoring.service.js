@@ -24,7 +24,7 @@ export async function createDevice(user, { name }) {
 
 export function publicDevice(item) {
   return Object.fromEntries(['_id', 'name', 'hostname', 'status', 'employeeId', 'consentAt', 'consentVersion',
-    'pairingExpiresAt', 'tokenExpiresAt', 'collectAfter', 'lastSeenAt', 'createdAt'].map((key) => [key, item[key]]));
+    'pairingExpiresAt', 'tokenExpiresAt', 'collectAfter', 'lastSeenAt', 'lastUploadAt', 'activityWatchAvailable', 'watchers', 'createdAt'].map((key) => [key, item[key]]));
 }
 
 export async function enrollDevice({ code, hostname }) {
@@ -52,9 +52,25 @@ export async function authenticateDevice(token) {
   return device;
 }
 
-export async function listDevices(user) {
-  const items = await MonitoringDevice.find(deviceScope(user)).select('-__v').populate('employeeId', 'name employeeCode').sort({ createdAt: -1 }).limit(200).lean();
+export async function listDevices(user, { employeeId } = {}) {
+  const scope = deviceScope(user);
+  if (user.role === 'HR' && employeeId) scope.employeeId = employeeId;
+  const items = await MonitoringDevice.find(scope).select('-__v').populate('employeeId', 'name employeeCode').sort({ createdAt: -1 }).limit(200).lean();
   return { items: items.map(publicDevice), limit: 200 };
+}
+
+export async function listMonitoringEmployees(user) {
+  const items = await User.find({ organizationId: user.organizationId, role: 'Employee', active: true })
+    .select('_id name employeeCode').sort({ name: 1 }).limit(1000).lean();
+  return { items, limit: 1000 };
+}
+
+export async function heartbeat(device, data) {
+  await MonitoringDevice.updateOne({ _id: device._id }, { $set: {
+    lastSeenAt: new Date(), activityWatchAvailable: data.activityWatchAvailable,
+    watchers: [...new Set(data.watchers)],
+  } });
+  return { ok: true };
 }
 
 export async function changeDeviceState(scope, id, status) {
@@ -95,7 +111,7 @@ export async function ingestActivity(device, events) {
     filter: { deviceId: device._id, bucketId: item.bucketId, sourceId: item.sourceId },
     update: { $set: item }, upsert: true,
   } })), { ordered: true });
-  await MonitoringDevice.updateOne({ _id: device._id }, { $set: { lastSeenAt: new Date() } });
+  await MonitoringDevice.updateOne({ _id: device._id }, { $set: { lastSeenAt: new Date(), ...(items.length && { lastUploadAt: new Date() }) } });
   return { accepted: items.length, skipped: events.length - items.length };
 }
 

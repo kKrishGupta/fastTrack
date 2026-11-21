@@ -17,6 +17,10 @@ For a production frontend build, run `npm.cmd run build`. Serve `client/dist` us
 
 ## Pair a test computer
 
+The deployed dashboard provides a **Download Windows agent** button in **Activity monitoring** for both roles. The ZIP contains six files: the two JavaScript modules, `Connect.cmd`, `Start.cmd`, `README.txt`, and a `connection.json` pointing to the current FaceTrack server. It contains no employee code, credential or `.env` file. Extract all files to a private folder. With ActivityWatch and Node.js 20.19+ installed, create a pairing code from the employee workspace and open `Connect.cmd`; it pairs and immediately starts the visible agent. Open `Start.cmd` on subsequent days. A full repository checkout and npm installation are not required for this download.
+
+For developers using the repository, the equivalent commands are below.
+
 1. Install and launch [ActivityWatch](https://activitywatch.net/downloads/). Confirm `http://localhost:5600` opens locally.
 2. For website domains, install the official [browser watcher](https://docs.activitywatch.net/en/latest/watchers.html). Without it, application and AFK activity still work.
 3. Sign into FaceTrack as the participating employee. Open **Activity monitoring** (`/employee/monitoring`). Read the disclosure, enter a device name, check the consent box, and create a pairing code.
@@ -50,7 +54,7 @@ Invoke-RestMethod "http://localhost:5600/api/0/buckets/"
 
 Preview only reads local bucket metadata and event counts; it does not upload data. Use Chrome, VS Code, File Explorer and another app for at least five minutes. Open a few test websites. In FaceTrack, open **Activity monitoring** as the employee or HR. Allow approximately three minutes for recorded activity to settle and another 30 seconds for refresh. A browser bucket is required for the Websites section.
 
-The dashboard shows application/website durations, active/away totals, device contact status and the 50 most recent events. HR can filter by employee. Reports cover up to seven days per request, and raw events expire after 30 days. MongoDB's TTL cleanup is asynchronous; expired records are excluded from reports immediately. Application time includes idle periods. Application, browser and presence durations are separate measures; totals across multiple devices or employees can overlap and must not be interpreted as unique working hours.
+The dashboard shows application/website durations, active/away totals, device contact status and the 50 most recent events. HR can filter by employee, including employees who have not paired a device yet. Employee options are organization-scoped and limited to 1,000 names. Device filtering runs on the API before the 200-device limit. New agents send watcher-health heartbeats so the dashboard can show **ActivityWatch unavailable**, detect a missing browser watcher, and display the last successful activity upload. These health signals describe software connectivity rather than employee productivity. Reports cover up to seven days per request, and raw events expire after 30 days. MongoDB's TTL cleanup is asynchronous; expired records are excluded from reports immediately. Application time includes idle periods. Application, browser and presence durations are separate measures; totals across multiple devices or employees can overlap and must not be interpreted as unique working hours.
 
 ## Synchronization behavior
 
@@ -68,9 +72,12 @@ Closing this sync agent stops FaceTrack uploads, not ActivityWatch's own local r
 | `POST /devices` | Employee session, CSRF, explicit consent; returns one-time code |
 | `POST /enroll` | Rate-limited code exchange; returns scoped device credential once |
 | `GET /devices` | Employee's devices or HR's organization; latest 200 |
+| `GET /devices?employeeId=...` | HR's selected employee within their organization; employees remain self-scoped |
+| `GET /employees` | HR-only directory in their organization; up to 1,000 names |
 | `PATCH /devices/:id` | Same scope; pause, resume or permanent revoke |
 | `GET /report?start=...&end=...&employeeId=...` | Employee's own records or HR's organization |
 | `GET /agent/status` | Hashed bearer device credential; verifies active employee and organization |
+| `POST /agent/heartbeat` | Device credential; records ActivityWatch availability and supported watcher types |
 | `PATCH /agent/state` | Device credential; pause/resume own device |
 | `POST /agent/events` | Device credential; validated, bounded, scoped batch |
 
@@ -80,4 +87,4 @@ Protocol references: [ActivityWatch REST API](https://docs.activitywatch.net/en/
 
 ## Test scope
 
-`npm.cmd run check` runs backend tests, agent tests and the production client build. Monitoring tests exercise code exchange, device authentication, tenant scopes, consent/CSRF, pause rejection, batch validation, source-key upserts and privacy filtering with mocked database models. Agent tests cover heartbeat clipping, stable keys, URL minimization, HTTPS enforcement and saturated queries. These do not replace a live MongoDB-to-dashboard test or a 1/5/15-employee load test. Complete those with consenting test accounts before production rollout.
+`npm.cmd run check` runs backend tests, download tests, agent tests and the production client build. Monitoring tests exercise code exchange, device authentication, tenant scopes, consent/CSRF, pause rejection, batch validation, source-key upserts, health heartbeats and HR directory access with mocked database models. Download tests verify archive structure, CRC checksums, allowed files, launch commands and per-site configuration without bundled credentials. Agent tests cover heartbeat clipping, stable keys, URL minimization, HTTPS enforcement and saturated queries. These do not replace a live MongoDB-to-dashboard test or a 1/5/15-employee load test. Complete those with consenting test accounts before production rollout.

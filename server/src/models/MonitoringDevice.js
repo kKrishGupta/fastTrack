@@ -14,6 +14,9 @@ const schema = new mongoose.Schema({
   tokenExpiresAt: Date,
   collectAfter: Date,
   lastSeenAt: Date,
+  lastUploadAt: Date,
+  activityWatchAvailable: Boolean,
+  watchers: [{ type: String, enum: ['currentwindow', 'afkstatus', 'web.tab.current'] }],
 }, { timestamps: true });
 schema.index({ pairingHash: 1 }, { unique: true, partialFilterExpression: { pairingHash: { $type: 'string' } } });
 schema.index({ tokenHash: 1 }, { unique: true, partialFilterExpression: { tokenHash: { $type: 'string' } } });

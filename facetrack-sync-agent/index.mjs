@@ -35,8 +35,12 @@ async function api(path, options = {}) {
 
 async function pair() {
   const serverArg = process.argv.indexOf('--server');
-  if (serverArg < 0 || !process.argv[serverArg + 1]) throw new Error('Usage: node facetrack-sync-agent/index.mjs pair --server https://your-api.onrender.com');
-  state = { server: validateServer(process.argv[serverArg + 1]), cursors: {}, includeTitles: process.argv.includes('--include-titles') };
+  let server = serverArg < 0 ? null : process.argv[serverArg + 1];
+  if (!server) {
+    try { server = JSON.parse(await readFile(new URL('./connection.json', import.meta.url), 'utf8')).server; }
+    catch { throw new Error('Download the agent from your FaceTrack dashboard, or use pair --server https://your-api-server'); }
+  }
+  state = { server: validateServer(server), cursors: {}, includeTitles: process.argv.includes('--include-titles') };
   const prompt = createInterface({ input: process.stdin, output: process.stdout });
   try {
     console.log('FaceTrack ActivityWatch pairing. Activity uploads begin only when you run this agent.');
@@ -47,7 +51,7 @@ async function pair() {
     state.collectAfter = result.item.collectAfter;
     state.deviceId = result.item._id;
     await save();
-    console.log('Device paired. Run: node facetrack-sync-agent/index.mjs run');
+    console.log('Device paired. Open Start.cmd or run: node index.mjs run');
     console.log('Keep .state.json private. It contains this device credential.');
   } finally { prompt.close(); }
 }
@@ -82,6 +86,7 @@ async function run() {
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
   const keyHandler = (text, key) => {
+    text = text?.toLowerCase();
     if (key?.ctrl && key.name === 'c' || text === 'q') return stop();
     if (text === 'p') { localPaused = true; state.localPaused = true; requested = 'paused'; save().catch((error) => console.error(error.message)); console.log('PAUSED locally. Sending pause to FaceTrack.'); wake?.(); }
     if (text === 'r') { requested = 'active'; console.log('Resume requested. Waiting for FaceTrack confirmation.'); wake?.(); }
@@ -116,8 +121,16 @@ async function run() {
         await save();
         const status = localPaused || device.status === 'paused' ? 'PAUSED' : 'MONITORING';
         if (status !== lastStatus) { console.log(`${new Date().toISOString()} ${status}`); lastStatus = status; }
+        let buckets;
+        try {
+          buckets = await localJson('/buckets/');
+        } catch (error) {
+          await api('/agent/heartbeat', { method: 'POST', body: { activityWatchAvailable: false, watchers: [] } });
+          throw error;
+        }
+        const watchers = [...new Set(Object.values(buckets).map((bucket) => bucket.type).filter((type) => SUPPORTED_TYPES.has(type)))];
+        await api('/agent/heartbeat', { method: 'POST', body: { activityWatchAvailable: true, watchers } });
         if (status === 'MONITORING') {
-          const buckets = await localJson('/buckets/');
           const finalEnd = Date.now() - 180_000;
           let uploaded = 0;
           for (const [id, metadata] of Object.entries(buckets)) {
@@ -163,9 +176,10 @@ async function run() {
 
 try {
   if (command === 'pair') await pair();
+  else if (command === 'connect') { await pair(); await run(); }
   else if (command === 'preview') await preview();
   else if (command === 'run') await run();
-  else throw new Error('Commands: pair --server <origin> [--include-titles], run, preview');
+  else throw new Error('Commands: connect, pair --server <origin> [--include-titles], run, preview');
 } catch (error) {
   console.error(error.code === 'ENOENT' ? 'Agent is not paired. Use the pair command first.' : error.message);
   process.exitCode = 1;
