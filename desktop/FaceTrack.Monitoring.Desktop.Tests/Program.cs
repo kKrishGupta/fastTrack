@@ -1,6 +1,14 @@
 using System.Drawing.Imaging;
 using FaceTrack.Monitoring.Desktop;
 
+if (args.Contains("--live", StringComparer.OrdinalIgnoreCase))
+{
+    var live = ScreenshotCapture.TryCapture("primary", new HashSet<string>(StringComparer.OrdinalIgnoreCase))
+        ?? throw new Exception("Live screenshot capture was skipped by the desktop safety checks or could not meet the 30 KB limit.");
+    Console.WriteLine($"PASS LIVE_JPEG={live.Bytes.Length} bytes ({live.Bytes.Length / 1024d:0.0} KB) dimensions={live.Width}x{live.Height}");
+    return;
+}
+
 using var source = new Bitmap(1920, 1080, PixelFormat.Format24bppRgb);
 using (var graphics = Graphics.FromImage(source))
 {
