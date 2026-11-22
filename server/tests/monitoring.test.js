@@ -235,4 +235,38 @@ describe('monitoring HTTP endpoints', () => {
     expect(allowed.body.items[0].name).toBe('Test Employee');
     expect(mocks.employee.find).toHaveBeenCalledWith({ organizationId: employee.organizationId, role: 'Employee', active: true });
   });
+  it('allows an employee to grant screenshot consent on an existing enrolled device', async () => {
+    const deviceWithConsent = { ...device, screenshotConsentAt: new Date() };
+    mocks.device.findOneAndUpdate.mockResolvedValue(deviceWithConsent);
+    const response = await request(app)
+      .patch(`/api/monitoring/devices/${device._id}/consent`)
+      .set('Cookie', sessionCookie())
+      .set('X-XSRF-TOKEN', 'test')
+      .send({ screenshotConsent: true });
+    expect(response.status).toBe(200);
+    expect(response.body.item.screenshotConsentAt).toBeTruthy();
+    // The update must be scoped to the employee's own org and userId
+    const updateCall = mocks.device.findOneAndUpdate.mock.calls[0];
+    expect(updateCall[0]).toMatchObject({ organizationId: employee.organizationId, employeeId: employee._id, _id: device._id });
+    expect(updateCall[1].$set.screenshotConsentAt).toBeInstanceOf(Date);
+  });
+  it('prevents HR from granting screenshot consent (employee-only endpoint)', async () => {
+    mocks.employee.findOne.mockResolvedValue({ ...employee, role: 'HR' });
+    const response = await request(app)
+      .patch(`/api/monitoring/devices/${device._id}/consent`)
+      .set('Cookie', sessionCookie())
+      .set('X-XSRF-TOKEN', 'test')
+      .send({ screenshotConsent: true });
+    expect(response.status).toBe(403);
+    expect(mocks.device.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+  it('rejects screenshot consent grant with screenshotConsent: false or missing body', async () => {
+    const badFalse = await request(app).patch(`/api/monitoring/devices/${device._id}/consent`)
+      .set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test').send({ screenshotConsent: false });
+    expect(badFalse.status).toBe(400);
+    const badMissing = await request(app).patch(`/api/monitoring/devices/${device._id}/consent`)
+      .set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test').send({});
+    expect(badMissing.status).toBe(400);
+    expect(mocks.device.findOneAndUpdate).not.toHaveBeenCalled();
+  });
 });

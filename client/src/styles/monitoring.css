@@ -44,6 +44,16 @@
 .monitoring-steps strong { display: block; font-family: 'Manrope', sans-serif; font-size: 14px; }
 .monitoring-steps p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 10px 0 14px; }
 .monitoring-steps a { display: flex; gap: 6px; align-items: center; width: fit-content; margin-top: 10px; color: var(--forest); font-size: 13px; font-weight: 700; text-decoration: underline; }
+.monitoring-installer-download { display: inline-flex !important; align-items: center; gap: 7px; background: var(--forest); color: #ffffff !important; text-decoration: none !important; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; margin: 4px 0 12px !important; transition: background-color 150ms ease, transform 150ms ease; box-shadow: 0 2px 6px rgba(36, 98, 73, 0.18); }
+.monitoring-installer-download:hover { background: var(--forest-dark); transform: translateY(-1px); }
+.monitoring-installer-details { display: flex; flex-direction: column; gap: 7px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.monitoring-installer-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.monitoring-installer-version { font-weight: 600; color: var(--ink); }
+.monitoring-installer-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.monitoring-installer-badge--unsigned { background: #edf1ee; color: #506059; border: 1px solid #dbe2dc; }
+.monitoring-installer-hash { display: flex; flex-direction: column; gap: 3px; }
+.monitoring-installer-hash-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.monitoring-installer-hash code { font-family: monospace; font-size: 11px; background: rgba(0, 0, 0, 0.04); padding: 4px 6px; border-radius: 6px; overflow-wrap: anywhere; word-break: break-all; color: var(--ink); border: 1px solid rgba(0, 0, 0, 0.05); }
 .monitoring-setup > p a { color: var(--forest); text-decoration: underline; }
 .monitoring-browser-setup { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
 .monitoring-browser-setup summary { cursor: pointer; font-weight: 700; }
@@ -57,10 +67,20 @@
 .monitoring-gallery-filters input, .monitoring-gallery-filters select { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--surface); color: var(--ink); }
 .monitoring-pagination { justify-content: center; align-items: center; }
 .monitoring-screenshot-view { margin: 18px 0 0; }
+.monitoring-screenshot-view-header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+.monitoring-screenshot-view-header strong { font-weight: 700; }
+.monitoring-screenshot-view-header .monitoring-screenshot-expiry { color: var(--muted); flex: 1; }
 .monitoring-screenshot-view img { display: block; max-width: 100%; max-height: 70vh; border: 1px solid var(--line); border-radius: 12px; object-fit: contain; }
 .monitoring-screenshot-view figcaption { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.monitoring-screenshot-grid button.monitoring-screenshot-selected { border-color: var(--forest); background: var(--soft-green); }
+.monitoring-screenshot-grid button:hover { border-color: var(--forest); }
 .monitoring-pairing details { border-top: 1px solid var(--line); padding-top: 12px; }
 .monitoring-pairing summary { cursor: pointer; font-size: 13px; font-weight: 700; }
 .monitoring-pairing details pre { margin-top: 10px; }
+.monitoring-consent-granted { color: var(--forest) !important; }
+.monitoring-consent-prompt { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
+.monitoring-consent-prompt summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--warning, #b45309); }
+.monitoring-consent-prompt p { font-size: 13px; line-height: 1.6; color: var(--muted); margin: 8px 0; }
+.monitoring-consent-prompt .button { margin-top: 8px; }
 @media (max-width: 1000px) { .monitoring-steps { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .monitoring-grid, .monitoring-stats { grid-template-columns: 1fr; } .monitoring-toolbar { align-items: flex-start; flex-direction: column; } .monitoring-devices article { flex-wrap: wrap; } .monitoring-device-info { flex-basis: 60%; } .monitoring-card { padding: 18px; } }

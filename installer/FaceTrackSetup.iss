@@ -1,4 +1,4 @@
-#define AppVersion "1.2.0"
+#define AppVersion "1.2.1"
 [Setup]
 AppId={{D992EBF1-BDFD-49F9-BE31-8EAD86543CC6}
 AppName=FaceTrack Monitoring
@@ -11,7 +11,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=output
 OutputBaseFilename=FaceTrackSetup
 Compression=lzma2
-SolidCompression=yes
+SolidCompression=no
 CloseApplications=yes
 RestartApplications=no
 UninstallDisplayName=FaceTrack Monitoring

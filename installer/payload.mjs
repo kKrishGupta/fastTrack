@@ -1,5 +1,5 @@
-import { copyFile, mkdir, readFile } from 'node:fs/promises';
-import { dirname, relative, resolve, sep } from 'node:path';
+import { copyFile, mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 const staticImport = /(?:import|export)\s+(?:[^'";]*?\s+from\s+)?['"](\.\.?\/[^'"]+\.mjs)['"]/g;
 const dynamicImport = /import\(\s*['"](\.\.?\/[^'"]+\.mjs)['"]\s*\)/g;
@@ -43,4 +43,44 @@ export async function copyRuntimeClosure(sourceDirectory, destinationDirectory, 
 
 export async function assertRuntimeClosure(payloadDirectory, entries) {
   return runtimeModuleClosure(payloadDirectory, entries);
+}
+
+async function recursiveFiles(directory) {
+  const result = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isSymbolicLink()) throw new Error(`Symlink in package input: ${path}`);
+    if (entry.isDirectory()) result.push(...await recursiveFiles(path));
+    else result.push(path);
+  }
+  return result;
+}
+
+export async function pruneActivityWatchSourceMaps(activityWatchDirectory) {
+  const staticDirectory = join(activityWatchDirectory, 'aw-server', 'aw_server', 'static');
+  const paths = await recursiveFiles(staticDirectory);
+  let removedFiles = 0;
+  let removedBytes = 0;
+  let strippedReferences = 0;
+
+  for (const path of paths) {
+    if (path.endsWith('.map')) {
+      const bytes = await readFile(path);
+      await unlink(path);
+      removedFiles += 1;
+      removedBytes += bytes.length;
+      continue;
+    }
+    if (!path.endsWith('.js') && !path.endsWith('.css')) continue;
+    const original = await readFile(path, 'utf8');
+    const stripped = original
+      .replace(/(?:\r?\n)?\/\/# sourceMappingURL=[^\r\n]*(?:\r?\n|$)/g, '\n')
+      .replace(/(?:\r?\n)?\/\*# sourceMappingURL=[^*]*\*\/(?:\r?\n|$)/g, '\n');
+    if (stripped !== original) {
+      await writeFile(path, stripped);
+      strippedReferences += 1;
+    }
+  }
+
+  return { removedFiles, removedBytes, strippedReferences };
 }

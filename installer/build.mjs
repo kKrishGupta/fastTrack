@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateServer } from '../facetrack-sync-agent/activitywatch.mjs';
-import { assertRuntimeClosure, copyRuntimeClosure } from './payload.mjs';
+import { assertRuntimeClosure, copyRuntimeClosure, pruneActivityWatchSourceMaps } from './payload.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = dirname(here);
 const args = process.argv.slice(2);
@@ -57,6 +57,8 @@ if (!args.includes('--compile-only')) {
     await cp(dirname(entry), join(stage, name), { recursive: true });
     console.log(`Staged official ${name} ${pin.version}; SHA-256 verified.`);
   }
+  const sourceMaps = await pruneActivityWatchSourceMaps(join(stage, 'activitywatch'));
+  console.log(`Removed ${sourceMaps.removedFiles} ActivityWatch debug source maps (${sourceMaps.removedBytes} bytes) and stripped ${sourceMaps.strippedReferences} runtime references.`);
   const bridge = join(stage, 'bridge'); await mkdir(bridge, { recursive: true });
   const bridgeModules = await copyRuntimeClosure(join(root, 'facetrack-sync-agent'), bridge);
   await assertRuntimeClosure(bridge);
@@ -70,6 +72,7 @@ if (!args.includes('--compile-only')) {
   ], { stdio: 'inherit' });
   if (desktopBuild.status !== 0) throw new Error('FaceTrack desktop status application build failed');
   await cp(join(desktopOutput, 'FaceTrackMonitoring.exe'), join(stage, 'FaceTrackMonitoring.exe'));
+  await cp(join(here, 'verify-payload.mjs'), join(stage, 'verify-payload.mjs'));
   await unlink(join(stage, 'FaceTrack Monitoring.cmd')).catch((error) => { if (error.code !== 'ENOENT') throw error; });
   for (const name of ['dependencies.lock.json', 'THIRD_PARTY_NOTICES.md']) await cp(join(here, name), join(stage, name));
   const dotnetRoot = join(process.env.ProgramFiles || 'C:\\Program Files', 'dotnet');

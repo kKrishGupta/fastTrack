@@ -13,6 +13,9 @@ export const enrollSchema = z.object({
   hostname: z.string().trim().min(1).max(200),
 });
 export const deviceStateSchema = z.object({ status: z.enum(['active', 'paused', 'revoked']) });
+export const deviceConsentSchema = z.object({
+  screenshotConsent: z.literal(true),
+}).strict();
 export const agentStateSchema = z.object({ status: z.enum(['active', 'paused']) });
 export const deviceQuerySchema = z.object({ employeeId: id.optional() });
 export const heartbeatSchema = z.object({

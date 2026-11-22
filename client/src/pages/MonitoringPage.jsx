@@ -20,12 +20,43 @@ export function MonitoringInstaller({ integration, isHr }) {
   const installer = integration?.installer || (integration?.installerUrl ? { url: integration.installerUrl } : null);
   if (!installer?.url) return <div className="form-alert" role="status">The FaceTrack Monitoring Windows installer has not been published by this server. Ask your administrator for the approved installer; command-line setup is not offered.</div>;
   return <>
-    <ol className="monitoring-steps"><li><strong>Install FaceTrack Monitoring</strong><p>Includes official ActivityWatch and the FaceTrack bridge.</p><a href={installer.url}>Download FaceTrackSetup.exe <Download size={13} /></a>
-      {(installer.version || installer.sizeBytes) && <small>Version {installer.version || 'unavailable'} · {fileSize(installer.sizeBytes)}</small>}
-      {installer.sha256 && <small>SHA-256 <code>{installer.sha256}</code></small>}
-    </li><li><strong>Enroll your work computer</strong><p>Read the disclosure, create a code below and paste it into the visible FaceTrack Monitoring window.</p></li><li><strong>Use the graphical controls</strong><p>Collectors and synchronization start automatically. Use the desktop window or tray menu to pause, resume, stop or restart monitoring.</p></li></ol>
-    {installer.signed === false && <div className="form-alert" role="note">Version {installer.version} is an unsigned internal QA build. Windows may show an unknown-publisher warning. Use it only for controlled FaceTrack testing until the production installer is code-signed.</div>}
-    {isHr && installer.channel && <p className="monitoring-muted">Release channel: {installer.channel}.</p>}
+    <ol className="monitoring-steps">
+      <li>
+        <strong>Install FaceTrack Monitoring</strong>
+        <p>Includes official ActivityWatch and the FaceTrack bridge.</p>
+        <a href={installer.url} className="monitoring-installer-download">
+          Download FaceTrackSetup.exe <Download size={13} />
+        </a>
+        <div className="monitoring-installer-details">
+          <div className="monitoring-installer-meta-row">
+            {(installer.version || installer.sizeBytes) && (
+              <span className="monitoring-installer-version">
+                Version {installer.version || 'unavailable'} · {fileSize(installer.sizeBytes)}
+              </span>
+            )}
+            {installer.signed === false && (
+              <span className="monitoring-installer-badge monitoring-installer-badge--unsigned" role="note">
+                Unsigned build
+              </span>
+            )}
+          </div>
+          {installer.sha256 && (
+            <div className="monitoring-installer-hash">
+              <span className="monitoring-installer-hash-label">SHA-256</span>
+              <code>{installer.sha256}</code>
+            </div>
+          )}
+        </div>
+      </li>
+      <li>
+        <strong>Enroll your work computer</strong>
+        <p>Read the disclosure, create a code below and paste it into the visible FaceTrack Monitoring window.</p>
+      </li>
+      <li>
+        <strong>Use the graphical controls</strong>
+        <p>Collectors and synchronization start automatically. Use the desktop window or tray menu to pause, resume, stop or restart monitoring.</p>
+      </li>
+    </ol>
   </>;
 }
 
@@ -62,6 +93,8 @@ export function MonitoringPage() {
     onSuccess: (result) => { setPairing(result); setConsent(false); setBrowserDetailsConsent(false); setScreenshotConsent(false); setCopyNotice(''); refresh(); } });
   const change = useMutation({ mutationFn: async ({ id, status }) => (await api.patch(`/monitoring/devices/${id}`, { status })).data,
     onSuccess: () => { setNotice('Device status updated.'); refresh(); } });
+  const grantConsent = useMutation({ mutationFn: async (id) => (await api.patch(`/monitoring/devices/${id}/consent`, { screenshotConsent: true })).data,
+    onSuccess: () => { setNotice('Screenshot consent saved. The device will begin capturing screenshots on the next policy cycle.'); refresh(); } });
   const items = devices.data?.items || [];
   const visibleDevices = items.filter((item) => !isHr || !employeeId || item.employeeId?._id === employeeId);
   const employees = employeeOptions.data?.items || [];
@@ -121,12 +154,16 @@ export function MonitoringPage() {
       <p className="monitoring-muted">Application and website durations include idle time. Active and away time comes from the AFK watcher. Totals add across devices and employees and may overlap. Data can arrive about three minutes later.</p>
       <div className="monitoring-grid"><Ranking title="Applications" items={report.data.applications} /><Ranking title="Websites" items={report.data.websites} /></div></>}
 
-    <Card className="monitoring-card"><h2>Devices</h2>{notice && <p role="status">{notice}</p>}{change.isError && <div role="alert" className="form-alert">{change.error.message}</div>}{devices.isLoading && <LoadingState />}{devices.isError && <ErrorState error={devices.error} onRetry={devices.refetch} />}{!devices.isLoading && !devices.isError && !visibleDevices.length && <EmptyState title="No devices in this view" description={isHr ? 'Employees can pair their computer from Activity monitoring in their workspace.' : 'Create a pairing code above to connect the visible sync agent.'} />}
+    <Card className="monitoring-card"><h2>Devices</h2>{notice && <p role="status">{notice}</p>}{change.isError && <div role="alert" className="form-alert">{change.error.message}</div>}{grantConsent.isError && <div role="alert" className="form-alert">{grantConsent.error.message}</div>}{devices.isLoading && <LoadingState />}{devices.isError && <ErrorState error={devices.error} onRetry={devices.refetch} />}{!devices.isLoading && !devices.isError && !visibleDevices.length && <EmptyState title="No devices in this view" description={isHr ? 'Employees can pair their computer from Activity monitoring in their workspace.' : 'Create a pairing code above to connect the visible sync agent.'} />}
       <div className="monitoring-devices">{visibleDevices.map((item) => {
         const online = item.lastSeenAt && Date.now() - Date.parse(item.lastSeenAt) < 120_000;
         const label = item.status === 'pending' && Date.parse(item.pairingExpiresAt) < Date.now() ? 'Code expired' : item.status === 'active' && !online ? 'Agent offline' : item.status === 'active' && item.activityWatchAvailable === false ? 'ActivityWatch unavailable' : item.status === 'active' ? 'Connected' : item.status;
         const healthy = item.status === 'active' && online && item.activityWatchAvailable !== false;
-        return <article key={item._id}><Monitor size={20} /><div className="monitoring-device-info"><strong>{item.name}</strong><span>{isHr && `${item.employeeId?.name || 'Employee'} · `}{item.hostname || 'Awaiting pairing'}</span><small>Agent contact: {when(item.lastSeenAt)}</small><small>Last activity upload: {when(item.lastUploadAt)}</small>{online && item.activityWatchAvailable === false && <small>Launch ActivityWatch on this computer, then leave the agent open.</small>}{online && item.activityWatchAvailable && !item.watchers?.includes('web.tab.current') && <small>Browser watcher not detected; website tracking is unavailable.</small>}{isHr && item.browserBuckets?.length > 0 && <small>Detected browser bucket candidates: <code>{item.browserBuckets.join(', ')}</code>. Approve only a verified work-profile bucket in policy.</small>}</div><Badge tone={healthy ? 'success' : 'warning'}>{label}</Badge><div className="monitoring-actions">{['active', 'paused'].includes(item.status) && <Button size="sm" variant="secondary" disabled={change.isPending} onClick={() => change.mutate({ id: item._id, status: item.status === 'active' ? 'paused' : 'active' })}>{item.status === 'active' ? <Pause size={14} /> : <Play size={14} />}{item.status === 'active' ? 'Pause' : 'Resume'}</Button>}{item.status !== 'revoked' && <Button size="sm" variant="secondary" disabled={change.isPending} onClick={() => change.mutate({ id: item._id, status: 'revoked' })}>Revoke</Button>}</div></article>;
+        const needsScreenshotConsent = !isHr && !item.screenshotConsentAt && ['active', 'paused'].includes(item.status) && integration.data?.capabilities?.screenshots;
+        return <article key={item._id}><Monitor size={20} /><div className="monitoring-device-info"><strong>{item.name}</strong><span>{isHr && `${item.employeeId?.name || 'Employee'} · `}{item.hostname || 'Awaiting pairing'}</span><small>Agent contact: {when(item.lastSeenAt)}</small><small>Last activity upload: {when(item.lastUploadAt)}</small>{online && item.activityWatchAvailable === false && <small>Launch ActivityWatch on this computer, then leave the agent open.</small>}{online && item.activityWatchAvailable && !item.watchers?.includes('web.tab.current') && <small>Browser watcher not detected; website tracking is unavailable.</small>}{isHr && item.browserBuckets?.length > 0 && <small>Detected browser bucket candidates: <code>{item.browserBuckets.join(', ')}</code>. Approve only a verified work-profile bucket in policy.</small>}
+          {item.screenshotConsentAt && <small className="monitoring-consent-granted">Screenshot consent granted {new Date(item.screenshotConsentAt).toLocaleDateString()}</small>}
+          {needsScreenshotConsent && <details className="monitoring-consent-prompt"><summary>Screenshot consent not yet granted for this device</summary><p>This device was enrolled before screenshot storage was configured. Screenshots are disabled for it. Read the disclosure below and grant consent to enable them.</p><p className="monitoring-muted">Disclosed: FaceTrack will capture screenshots at the interval and retention shown in organization policy. Locked screens and excluded applications are always skipped. You can revoke consent by revoking this device.</p><Button size="sm" variant="secondary" disabled={grantConsent.isPending} onClick={() => grantConsent.mutate(item._id)}>Grant screenshot consent for this device</Button></details>}
+        </div><Badge tone={healthy ? 'success' : 'warning'}>{label}</Badge><div className="monitoring-actions">{['active', 'paused'].includes(item.status) && <Button size="sm" variant="secondary" disabled={change.isPending} onClick={() => change.mutate({ id: item._id, status: item.status === 'active' ? 'paused' : 'active' })}>{item.status === 'active' ? <Pause size={14} /> : <Play size={14} />}{item.status === 'active' ? 'Pause' : 'Resume'}</Button>}{item.status !== 'revoked' && <Button size="sm" variant="secondary" disabled={change.isPending} onClick={() => change.mutate({ id: item._id, status: 'revoked' })}>Revoke</Button>}</div></article>;
       })}</div>{devices.data?.items?.length >= 200 && <p>Showing the latest 200 devices.</p>}
     </Card>
     <Card className="monitoring-card"><h2>Recent activity</h2><div className="monitoring-table-wrap"><table className="monitoring-table"><thead><tr><th>Time</th>{isHr && <th>Employee</th>}<th>Type</th><th>Activity</th><th>Duration</th></tr></thead><tbody>{report.data?.recent?.map((event) => <tr key={event._id}><td>{when(event.timestamp)}</td>{isHr && <td>{employeeNames.get(event.employeeId) || 'Employee'}</td>}<td>{event.type === 'currentwindow' ? 'Application' : event.type === 'afkstatus' ? 'Presence' : 'Website'}</td><td>{event.app || event.domain || event.status}{event.title && <small>{event.title}</small>}</td><td>{Math.round(event.duration)}s</td></tr>)}</tbody></table></div>{!report.isLoading && !report.isError && !report.data?.recent?.length && <p className="monitoring-muted">No activity uploaded for this period.</p>}</Card>

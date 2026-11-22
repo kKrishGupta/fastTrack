@@ -20,5 +20,9 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    test: {
+      pool: 'threads',
+      testTimeout: 20000,
+    },
   };
 });

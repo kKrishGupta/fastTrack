@@ -21,6 +21,11 @@ export async function change(req, res) {
   await writeAudit({ user: req.user, action: `monitoring.${item.status}`, entityType: 'MonitoringDevice', entityId: item._id });
   res.json({ item });
 }
+export async function grantConsent(req, res) {
+  const item = await service.grantDeviceConsent(req.user, req.validated.params.id, req.validated.body);
+  await writeAudit({ user: req.user, action: 'monitoring.device.screenshot-consent-granted', entityType: 'MonitoringDevice', entityId: item._id });
+  res.json({ item });
+}
 export async function status(req, res) {
   await MonitoringDevice.updateOne({ _id: req.device._id }, { $set: { lastSeenAt: new Date() } });
   res.json({ item: service.publicDevice(req.device), policy: policy.effectivePolicy(await policy.getPolicy(req.device.organizationId), req.device,

@@ -82,6 +82,21 @@ export async function heartbeat(device, data) {
   return { ok: true };
 }
 
+export async function grantDeviceConsent(user, id, { screenshotConsent }) {
+  // Only the employee who owns the device can add consent on an already-enrolled device.
+  const scope = { organizationId: user.organizationId, employeeId: user._id ?? user.id };
+  const update = {};
+  if (screenshotConsent) update.screenshotConsentAt = new Date();
+  if (!Object.keys(update).length) throw new ApiError(400, 'NO_CONSENT_GRANTED', 'No consent field was provided');
+  const item = await MonitoringDevice.findOneAndUpdate(
+    { ...scope, _id: id, status: { $in: ['active', 'paused'] } },
+    { $set: update },
+    { new: true },
+  );
+  if (!item) throw new ApiError(404, 'DEVICE_NOT_FOUND', 'Device not found or not in an active state');
+  return publicDevice(item);
+}
+
 export async function changeDeviceState(scope, id, status, actor = 'employee') {
   // Revocation is permanent. Re-enrollment requires a fresh employee consent.
   const pauseField = actor === 'hr' ? 'adminHold' : 'employeePaused';

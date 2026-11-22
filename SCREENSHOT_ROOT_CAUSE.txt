@@ -1,0 +1,20 @@
+﻿# FaceTrack Screenshot Pipeline - Diagnostic & Fix Guide
+
+## ROOT CAUSE IDENTIFIED
+
+The screenshot pipeline is not working because:
+
+**1. Missing .env file**
+   - Location: D:\desktop\Task3\.env
+   - Status: DOES NOT EXIST
+   - Required: Must be created from .env.example
+
+**2. Cloudinary configuration missing**
+   Without a configured .env with Cloudinary credentials:
+   - Backend cannot upload screenshots
+   - Screenshot consent UI may not appear during enrollment
+   - Gallery remains empty even if agent captures screenshots
+
+## IMMEDIATE FIX STEPS
+
+See full guide for step-by-step instructions to configure Cloudinary and verify the pipeline.

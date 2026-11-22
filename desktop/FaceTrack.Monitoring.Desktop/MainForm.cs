@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
@@ -9,6 +10,28 @@ namespace FaceTrack.Monitoring.Desktop;
 
 internal sealed class MainForm : Form
 {
+    private static class NativeWindow
+    {
+        internal static readonly IntPtr TopMost = new(-1);
+        internal static readonly IntPtr NotTopMost = new(-2);
+        internal const int Restore = 9;
+        internal const uint NoMove = 0x0002;
+        internal const uint NoSize = 0x0001;
+        internal const uint Show = 0x0040;
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool ShowWindow(IntPtr handle, int command);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetForegroundWindow(IntPtr handle);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetWindowPos(IntPtr handle, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+    }
+
     private readonly Label status = new() { AutoSize = true, Font = new Font("Segoe UI", 12, FontStyle.Bold) };
     private readonly Label detail = new() { AutoSize = true, MaximumSize = new Size(500, 0) };
     private readonly TextBox code = new() { Width = 360, MaxLength = 43, PlaceholderText = "Paste the 43-character one-time code" };
@@ -266,13 +289,16 @@ internal sealed class MainForm : Form
     private void ShowWindow()
     {
         ShowInTaskbar = true;
-        TopMost = true;
         Show();
         Visible = true;
         WindowState = FormWindowState.Normal;
+        var handle = Handle;
+        NativeWindow.ShowWindow(handle, NativeWindow.Restore);
+        NativeWindow.SetWindowPos(handle, NativeWindow.TopMost, 0, 0, 0, 0, NativeWindow.NoMove | NativeWindow.NoSize | NativeWindow.Show);
+        NativeWindow.SetWindowPos(handle, NativeWindow.NotTopMost, 0, 0, 0, 0, NativeWindow.NoMove | NativeWindow.NoSize | NativeWindow.Show);
         BringToFront();
         Activate();
-        TopMost = false;
+        NativeWindow.SetForegroundWindow(handle);
     }
 
     private async Task ListenAsync(string pipeName, CancellationToken token)

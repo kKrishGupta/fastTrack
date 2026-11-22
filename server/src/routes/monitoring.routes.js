@@ -5,7 +5,7 @@ import { authenticateDevice, RETENTION_DAYS } from '../services/monitoring.servi
 import { requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../utils/async-handler.js';
-import { agentStateSchema, createDeviceSchema, deviceParams, deviceStateSchema, deviceQuerySchema, enrollSchema, heartbeatSchema, ingestSchema, reportQuerySchema, policySchema, ruleSchema, rotationSchema, screenshotCaptureParams, screenshotCompleteSchema, screenshotQuerySchema, screenshotRequestSchema, timelineQuerySchema } from '../validators/monitoring.schemas.js';
+import { agentStateSchema, createDeviceSchema, deviceConsentSchema, deviceParams, deviceStateSchema, deviceQuerySchema, enrollSchema, heartbeatSchema, ingestSchema, reportQuerySchema, policySchema, ruleSchema, rotationSchema, screenshotCaptureParams, screenshotCompleteSchema, screenshotQuerySchema, screenshotRequestSchema, timelineQuerySchema } from '../validators/monitoring.schemas.js';
 import { MONITORING_INSTALLER_RELEASE } from '../config/monitoring-release.js';
 
 export function createMonitoringRouter({ authenticate }) {
@@ -47,6 +47,7 @@ export function createMonitoringRouter({ authenticate }) {
   router.get('/employees', requireRole('HR'), asyncHandler(controller.employees));
   router.post('/devices', requireRole('Employee'), rateLimit({ windowMs: 60 * 60_000, limit: 10 }), validate(createDeviceSchema), asyncHandler(controller.create));
   router.patch('/devices/:id', validate(deviceParams, 'params'), validate(deviceStateSchema), asyncHandler(controller.change));
+  router.patch('/devices/:id/consent', requireRole('Employee'), validate(deviceParams, 'params'), validate(deviceConsentSchema), asyncHandler(controller.grantConsent));
   router.get('/report', validate(reportQuerySchema, 'query'), asyncHandler(controller.report));
   router.get('/summary', validate(reportQuerySchema, 'query'), asyncHandler(controller.summary));
   router.get('/timeline', validate(timelineQuerySchema, 'query'), asyncHandler(controller.timeline));

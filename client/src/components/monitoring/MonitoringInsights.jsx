@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -29,22 +29,75 @@ function ScreenshotGallery({ userId, isHr, employeeId, hours, devices }) {
   const initialDates = () => { const end = new Date(); return { start: new Date(+end - Math.min(hours, 24 * 31) * 3600_000).toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) }; };
   const [selected, setSelected] = useState(null), [deviceId, setDeviceId] = useState(''), [page, setPage] = useState(1);
   const [dates, setDates] = useState(initialDates);
-  useEffect(() => { setPage(1); setDeviceId(''); }, [employeeId]);
+  useEffect(() => { setPage(1); setDeviceId(''); setSelected(null); }, [employeeId]);
   const range = () => ({ start: new Date(`${dates.start}T00:00:00`).toISOString(), end: new Date(`${dates.end}T23:59:59.999`).toISOString(), page, limit: 24,
     ...(isHr && employeeId && { employeeId }), ...(deviceId && { deviceId }) });
   const captures = useQuery({ queryKey: ['monitoring','screenshots',userId,employeeId,deviceId,dates.start,dates.end,page], queryFn: async () => (await api.get('/monitoring/screenshots', { params: range() })).data,
     refetchInterval: 60_000, enabled: Boolean(dates.start && dates.end && dates.start <= dates.end) });
-  const thumbnails = useQueries({ queries: (captures.data?.items || []).map((item) => ({ queryKey: ['monitoring','screenshot-thumbnail',item._id],
-    queryFn: async () => (await api.get(`/monitoring/screenshots/${item._id}/view`)).data, staleTime: 45_000, retry: false })) });
-  const view = useMutation({ mutationFn: async (id) => (await api.get(`/monitoring/screenshots/${id}/view`)).data, onSuccess: setSelected });
+  // Thumbnails are fetched only on explicit user click to avoid generating an audit record per page load.
+  const view = useMutation({
+    mutationFn: async (id) => (await api.get(`/monitoring/screenshots/${id}/view`)).data,
+    onSuccess: (data) => setSelected(data),
+  });
   const filteredDevices = devices.filter((item) => !employeeId || String(item.employeeId?._id || item.employeeId) === employeeId);
-  return <Card className="monitoring-card"><h2>Authorized screenshot gallery</h2><p className="monitoring-muted">Loading a thumbnail or opening an image creates an audit record. Authenticated Cloudinary links expire after one minute.</p>
-    <div className="monitoring-gallery-filters"><label>From<input type="date" value={dates.start} onChange={(event) => { setDates({ ...dates, start: event.target.value }); setPage(1); }} /></label><label>Through<input type="date" value={dates.end} onChange={(event) => { setDates({ ...dates, end: event.target.value }); setPage(1); }} /></label><label>Device<select value={deviceId} onChange={(event) => { setDeviceId(event.target.value); setPage(1); }}><option value="">All devices</option>{filteredDevices.map((item) => <option key={item._id} value={item._id}>{item.name}{isHr && item.employeeId?.name ? ` — ${item.employeeId.name}` : ''}</option>)}</select></label></div>
-    {captures.isLoading && <LoadingState />}{captures.isError && <ErrorState error={captures.error} onRetry={captures.refetch} />}
-    <div className="monitoring-screenshot-grid">{captures.data?.items.map((item, index) => <button type="button" key={item._id} onClick={() => view.mutate(item._id)}>{thumbnails[index]?.data?.viewUrl ? <img src={thumbnails[index].data.viewUrl} alt="Authorized work screenshot thumbnail" loading="lazy" /> : <span className="monitoring-thumbnail-placeholder">Private preview</span>}{isHr && <strong>{item.employeeId?.name || 'Employee'}</strong>}<span>{new Date(item.capturedAt).toLocaleString()}</span><small>{item.width} × {item.height} · {Math.ceil(item.byteLength / 1024)} KB · retained until {new Date(item.expiresAt).toLocaleDateString()}</small></button>)}</div>
-    {captures.data?.pages > 1 && <div className="monitoring-pagination"><Button variant="secondary" disabled={page <= 1 || captures.isFetching} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {captures.data.page} of {captures.data.pages} · {captures.data.total} captures</span><Button variant="secondary" disabled={page >= captures.data.pages || captures.isFetching} onClick={() => setPage((value) => value + 1)}>Next</Button></div>}
-    {view.isError && <ErrorState error={view.error} />}{selected?.viewUrl && <figure className="monitoring-screenshot-view"><img src={selected.viewUrl} alt={`Employee work screenshot captured ${new Date(selected.item.capturedAt).toLocaleString()}`} /><figcaption>Capture retained until {new Date(selected.item.expiresAt).toLocaleString()}. Delivery access expires {new Date(selected.expiresAt).toLocaleTimeString()}.</figcaption></figure>}
-    {!captures.isLoading && !captures.data?.items.length && <p className="monitoring-muted">No retained screenshots in this period.</p>}
+  const handleCardClick = (item) => {
+    // If the same item is already selected, clicking it again dismisses the view.
+    if (selected?.item?._id === item._id) { setSelected(null); return; }
+    view.mutate(item._id);
+  };
+  return <Card className="monitoring-card">
+    <h2>Authorized screenshot gallery</h2>
+    <p className="monitoring-muted">
+      Click a capture to open it. Each view is audit-logged. Authenticated delivery links expire after one minute.
+      {isHr ? ' HR can view captures from all employees in this organization.' : ' You can only view your own captures.'}
+    </p>
+    <div className="monitoring-gallery-filters">
+      <label>From<input type="date" value={dates.start} onChange={(event) => { setDates({ ...dates, start: event.target.value }); setPage(1); setSelected(null); }} /></label>
+      <label>Through<input type="date" value={dates.end} onChange={(event) => { setDates({ ...dates, end: event.target.value }); setPage(1); setSelected(null); }} /></label>
+      <label>Device<select value={deviceId} onChange={(event) => { setDeviceId(event.target.value); setPage(1); setSelected(null); }}><option value="">All devices</option>{filteredDevices.map((item) => <option key={item._id} value={item._id}>{item.name}{isHr && item.employeeId?.name ? ` — ${item.employeeId.name}` : ''}</option>)}</select></label>
+    </div>
+    {captures.isLoading && <LoadingState />}
+    {captures.isError && <ErrorState error={captures.error} onRetry={captures.refetch} />}
+    {!captures.isLoading && !captures.isError && captures.data?.items.length === 0 && (
+      <p className="monitoring-muted">No retained screenshots in this period. Confirm that the organization screenshot policy is enabled, the employee device has screenshot consent, and at least one interval has elapsed.</p>
+    )}
+    <div className="monitoring-screenshot-grid">
+      {captures.data?.items.map((item) => {
+        const isSelected = selected?.item?._id === item._id;
+        const isLoading = view.isPending && view.variables === item._id;
+        return (
+          <button type="button" key={item._id} className={isSelected ? 'monitoring-screenshot-selected' : ''} onClick={() => handleCardClick(item)} aria-pressed={isSelected}>
+            <span className="monitoring-thumbnail-placeholder">{isLoading ? 'Loading…' : isSelected ? 'Click to close' : 'Click to view'}</span>
+            {isHr && <strong>{item.employeeId?.name || 'Employee'}</strong>}
+            <span>{new Date(item.capturedAt).toLocaleString()}</span>
+            <small>{item.width} × {item.height} · {Math.ceil(item.byteLength / 1024)} KB · retained until {new Date(item.expiresAt).toLocaleDateString()}</small>
+          </button>
+        );
+      })}
+    </div>
+    {captures.data?.pages > 1 && (
+      <div className="monitoring-pagination">
+        <Button variant="secondary" disabled={page <= 1 || captures.isFetching} onClick={() => { setPage((value) => value - 1); setSelected(null); }}>Previous</Button>
+        <span>Page {captures.data.page} of {captures.data.pages} · {captures.data.total} captures</span>
+        <Button variant="secondary" disabled={page >= captures.data.pages || captures.isFetching} onClick={() => { setPage((value) => value + 1); setSelected(null); }}>Next</Button>
+      </div>
+    )}
+    {view.isError && <div role="alert" className="form-alert">{view.error.message}</div>}
+    {selected?.viewUrl && (
+      <figure className="monitoring-screenshot-view">
+        <div className="monitoring-screenshot-view-header">
+          {isHr && selected.item?.employeeId && <strong>{captures.data?.items.find((i) => i._id === selected.item._id)?.employeeId?.name || 'Employee'}</strong>}
+          <span>Captured {new Date(selected.item.capturedAt).toLocaleString()}</span>
+          <span className="monitoring-screenshot-expiry">Delivery link expires {new Date(selected.expiresAt).toLocaleTimeString()}</span>
+          <Button variant="secondary" size="sm" onClick={() => setSelected(null)} aria-label="Close screenshot view">Close</Button>
+        </div>
+        <img src={selected.viewUrl} alt={`Work screenshot captured ${new Date(selected.item.capturedAt).toLocaleString()}`} />
+        <figcaption>
+          {selected.item.width} × {selected.item.height} · {Math.ceil(selected.item.byteLength / 1024)} KB ·
+          Retained until {new Date(selected.item.expiresAt).toLocaleString()}
+        </figcaption>
+      </figure>
+    )}
   </Card>;
 }
 
