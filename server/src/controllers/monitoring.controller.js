@@ -5,6 +5,7 @@ import * as policy from '../services/monitoring-policy.service.js';
 import { rotateCredential } from '../services/monitoring-credentials.service.js';
 import * as reports from '../services/monitoring-reports.service.js';
 import * as screenshots from '../services/monitoring-screenshot.service.js';
+import { ApiError } from '../utils/api-error.js';
 
 export async function create(req, res) {
   const result = await service.createDevice(req.user, req.validated.body);
@@ -34,6 +35,9 @@ export async function ingest(req, res) { res.json(await service.ingestActivity(r
 export async function report(req, res) { res.json(await service.activityReport(req.user, req.validated.query)); }
 export async function getPolicy(req, res) { res.json({ item: await policy.getPolicy(req.user.organizationId) }); }
 export async function putPolicy(req, res) {
+  if (req.validated.body.screenshotsEnabled && !screenshots.storageAvailable(req.app.get('config'))) {
+    throw new ApiError(409, 'SCREENSHOT_STORAGE_DISABLED', 'Screenshots cannot be enabled because this FaceTrack API has not detected the required private Cloudinary configuration');
+  }
   const item = await policy.updatePolicy(req.user.organizationId, req.validated.body);
   await writeAudit({ user: req.user, action: 'monitoring.policy.updated', entityType: 'MonitoringPolicy', entityId: item._id });
   res.json({ item });

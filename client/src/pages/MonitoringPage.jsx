@@ -99,7 +99,7 @@ export function MonitoringPage() {
         <Button variant="secondary" onClick={refresh} aria-label="Refresh activity"><RefreshCw size={16} /></Button>
       </div>
     </div>
-    {integration.data?.capabilities?.policies && <MonitoringInsights userId={user?.id} isHr={isHr} employeeId={employeeId} hours={hours} screenshotsAvailable={Boolean(integration.data?.capabilities?.screenshots)} devices={visibleDevices} />}
+    {integration.data?.capabilities?.policies && <MonitoringInsights userId={user?.id} isHr={isHr} employeeId={employeeId} hours={hours} screenshotsAvailable={Boolean(integration.data?.capabilities?.screenshots)} screenshotStorage={integration.data?.screenshotStorage} devices={visibleDevices} />}
     {employeeOptions.isError && <ErrorState error={employeeOptions.error} onRetry={employeeOptions.refetch} />}
     {report.isLoading && <LoadingState />}
     {report.isError && <ErrorState error={report.error} onRetry={report.refetch} />}

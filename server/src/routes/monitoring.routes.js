@@ -10,10 +10,22 @@ import { agentStateSchema, createDeviceSchema, deviceParams, deviceStateSchema, 
 export function createMonitoringRouter({ authenticate }) {
   const router = Router();
   router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
-  router.get('/info', (req, res) => res.json({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.0', retentionDays: RETENTION_DAYS,
-    activityWatchVersion: '0.14.3', browserWatcherVersion: '0.6.0',
-    browserWatcherUrl: 'https://chromewebstore.google.com/detail/activitywatch-web-watcher/nglaklhklhcoonedhgnpgddginnjdadi',
-    capabilities: { policies: true, summaries: true, timeline: true, browserWatcher: true, screenshots: controller.screenshotStorageAvailable(req.app.get('config')) }, installerUrl: req.app.get('config').monitoringInstallerUrl }));
+  router.get('/info', (req, res) => {
+    const screenshotsAvailable = controller.screenshotStorageAvailable(req.app.get('config'));
+    res.json({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.0', retentionDays: RETENTION_DAYS,
+      activityWatchVersion: '0.14.3', browserWatcherVersion: '0.6.0',
+      browserWatcherUrl: 'https://chromewebstore.google.com/detail/activitywatch-web-watcher/nglaklhklhcoonedhgnpgddginnjdadi',
+      capabilities: { policies: true, summaries: true, timeline: true, browserWatcher: true, screenshots: screenshotsAvailable },
+      screenshotStorage: {
+        provider: 'cloudinary',
+        configured: screenshotsAvailable,
+        code: screenshotsAvailable ? 'READY' : 'SCREENSHOT_STORAGE_DISABLED',
+        message: screenshotsAvailable
+          ? 'Private authenticated screenshot storage is configured on this API.'
+          : 'This FaceTrack API has not detected all three required Cloudinary environment variables. Configure them on this backend and restart or redeploy it.',
+      },
+      installerUrl: req.app.get('config').monitoringInstallerUrl });
+  });
   router.post('/enroll', rateLimit({ windowMs: 15 * 60_000, limit: 20 }), validate(enrollSchema), asyncHandler(controller.enroll));
   router.use('/agent', rateLimit({ windowMs: 60_000, limit: 3000 }), asyncHandler(async (req, res, next) => {
     req.device = await authenticateDevice(/^Bearer ([A-Za-z0-9_-]{43})$/i.exec(req.get('authorization') || '')?.[1]);

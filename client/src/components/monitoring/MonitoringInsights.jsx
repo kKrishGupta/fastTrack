@@ -8,7 +8,7 @@ import { ErrorState, LoadingState } from '../ui/DataState';
 const time = (seconds = 0) => `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
 const fields = ['version','enabled','includeTitles','browserEnabled','browserUrlMode','browserTitleEnabled','approvedBrowserBuckets','excludedApps','excludedDomains','requireAttendance','retentionDays','screenshotsEnabled','screenshotIntervalSeconds','screenshotRetentionDays','screenshotDisplayMode','screenshotExcludedApps'];
 
-export function MonitoringInsights({ userId, isHr, employeeId, hours, screenshotsAvailable, devices = [] }) {
+export function MonitoringInsights({ userId, isHr, employeeId, hours, screenshotsAvailable, screenshotStorage, devices = [] }) {
   const params = () => { const end = new Date(); return { start: new Date(+end - hours * 3600_000).toISOString(), end: end.toISOString(), ...(isHr && employeeId && { employeeId }) }; };
   const summary = useQuery({ queryKey: ['monitoring', 'summary', userId, employeeId, hours], queryFn: async () => (await api.get('/monitoring/summary', { params: params() })).data, refetchInterval: 30_000 });
   const timeline = useInfiniteQuery({ queryKey: ['monitoring', 'timeline', userId, employeeId, hours], initialPageParam: null,
@@ -21,7 +21,7 @@ export function MonitoringInsights({ userId, isHr, employeeId, hours, screenshot
     </Card>
     <Card className="monitoring-card"><h2>Activity history</h2>{timeline.isError && <ErrorState error={timeline.error} onRetry={timeline.refetch} />}<div className="monitoring-table-wrap"><table className="monitoring-table"><thead><tr><th>Observed at</th><th>Type</th><th>Activity</th><th>Duration</th></tr></thead><tbody>{timeline.data?.pages.flatMap((page) => page.items).map((event) => <tr key={event._id}><td>{new Date(event.timestamp).toLocaleString()}</td><td>{event.type}</td><td>{event.app || event.domain || event.status}{event.url && <small>{event.url}</small>}{event.title && <small>{event.title}</small>}</td><td>{Math.round(event.duration)}s</td></tr>)}</tbody></table></div>{timeline.hasNextPage && <Button variant="secondary" disabled={timeline.isFetchingNextPage} onClick={() => timeline.fetchNextPage()}>Load older activity</Button>}{timeline.isLoading && <LoadingState />}</Card>
     {screenshotsAvailable && <ScreenshotGallery userId={userId} isHr={isHr} employeeId={employeeId} hours={hours} devices={devices} />}
-    <MonitoringPolicy isHr={isHr} userId={userId} screenshotsAvailable={screenshotsAvailable} />
+    <MonitoringPolicy isHr={isHr} userId={userId} screenshotsAvailable={screenshotsAvailable} screenshotStorage={screenshotStorage} />
   </>;
 }
 
@@ -48,29 +48,41 @@ function ScreenshotGallery({ userId, isHr, employeeId, hours, devices }) {
   </Card>;
 }
 
-function MonitoringPolicy({ isHr, userId, screenshotsAvailable }) {
+export function MonitoringPolicy({ isHr, userId, screenshotsAvailable, screenshotStorage }) {
   const client = useQueryClient();
   const [draft, setDraft] = useState(null), [rule, setRule] = useState({ kind: 'app', match: '', classification: 'neutral' });
   const policy = useQuery({ queryKey: ['monitoring', 'policy', userId], queryFn: async () => (await api.get('/monitoring/policy')).data.item });
   const rules = useQuery({ queryKey: ['monitoring', 'rules', userId], queryFn: async () => (await api.get('/monitoring/rules')).data.items });
   const refresh = () => client.invalidateQueries({ queryKey: ['monitoring'] });
-  const save = useMutation({ mutationFn: async () => api.put('/monitoring/policy', Object.fromEntries(fields.map((field) => [field, (draft || policy.data)[field]]))), onSuccess: () => { setDraft(null); refresh(); } });
+  const save = useMutation({
+    mutationFn: async (candidate) => (await api.put('/monitoring/policy', Object.fromEntries(fields.map((field) => [field, candidate[field]])))).data.item,
+    onSuccess: (item) => {
+      client.setQueryData(['monitoring', 'policy', userId], item);
+      setDraft(null);
+      refresh();
+    },
+  });
   const add = useMutation({ mutationFn: async () => api.post('/monitoring/rules', rule), onSuccess: () => { setRule({ ...rule, match: '' }); refresh(); } });
   const remove = useMutation({ mutationFn: async (id) => api.delete(`/monitoring/rules/${id}`), onSuccess: refresh });
   const value = draft || policy.data;
-  const edit = (field, next) => setDraft({ ...value, [field]: next });
+  const edit = (field, next) => {
+    save.reset();
+    setDraft((current) => ({ ...(current || policy.data), [field]: next }));
+  };
   return <Card className="monitoring-card"><h2>Organization monitoring policy</h2>{policy.isLoading && <LoadingState />}{policy.isError && <ErrorState error={policy.error} onRetry={policy.refetch} />}
-    {value && <><p>Policy revision {value.version}. Activity retention: {value.retentionDays} days. Screenshots are {screenshotsAvailable ? (value.screenshotsEnabled ? `enabled every ${value.screenshotIntervalSeconds} seconds with ${value.screenshotRetentionDays}-day retention` : 'available but disabled') : 'unavailable until private storage is configured'}.</p>{isHr ? <form className="monitoring-connect" onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+    {value && <><p>Policy revision {value.version}. Activity retention: {value.retentionDays} days. Screenshots are {screenshotsAvailable ? (value.screenshotsEnabled ? `enabled every ${value.screenshotIntervalSeconds} seconds with ${value.screenshotRetentionDays}-day retention` : 'available but disabled') : 'unavailable until private storage is configured'}.</p>
+    {!screenshotsAvailable && <div className="form-alert" role="alert"><strong>Screenshot storage is unavailable.</strong> {screenshotStorage?.message || 'The connected FaceTrack API has not detected the required private Cloudinary configuration. Configure all three Cloudinary environment variables on that backend, then restart or redeploy it.'}</div>}
+    {isHr ? <form className="monitoring-connect" onSubmit={(event) => { event.preventDefault(); save.mutate(value); }}>
       {[['enabled','Allow activity sharing'],['includeTitles','Allow optional non-browser window titles'],['browserEnabled','Allow separately authorized work browser buckets'],['browserTitleEnabled','Allow page titles for separately consenting devices'],['requireAttendance','Accept only checked-in attendance sessions']].map(([field,label]) => <label className="monitoring-checkbox" key={field}><input type="checkbox" checked={value[field]} onChange={(event) => edit(field,event.target.checked)} />{label}</label>)}
       <label>Browser URL detail<select value={value.browserUrlMode} onChange={(event) => edit('browserUrlMode',event.target.value)}><option value="domain">Domain only</option><option value="origin">Scheme and domain</option><option value="path">URL path, no query or fragment</option><option value="full">Full URL including query</option></select></label>
       <label>Retention days<input type="number" min="1" max="90" value={value.retentionDays} onChange={(event) => edit('retentionDays',Number(event.target.value))} /></label>
-      <label className="monitoring-checkbox"><input type="checkbox" disabled={!screenshotsAvailable} checked={value.screenshotsEnabled} onChange={(event) => edit('screenshotsEnabled',event.target.checked)} />Enable screenshots only for separately consenting devices</label>
+      <label className="monitoring-checkbox"><input type="checkbox" disabled={!screenshotsAvailable && !value.screenshotsEnabled} checked={value.screenshotsEnabled} onChange={(event) => edit('screenshotsEnabled',event.target.checked)} />Enable screenshots only for separately consenting devices</label>
       <label>Screenshot interval (seconds)<input type="number" min="60" max="3600" disabled={!screenshotsAvailable} value={value.screenshotIntervalSeconds} onChange={(event) => edit('screenshotIntervalSeconds',Number(event.target.value))} /></label>
       <label>Screenshot retention days<input type="number" min="1" max="30" disabled={!screenshotsAvailable} value={value.screenshotRetentionDays} onChange={(event) => edit('screenshotRetentionDays',Number(event.target.value))} /></label>
       <label>Screenshot displays<select disabled={!screenshotsAvailable} value={value.screenshotDisplayMode} onChange={(event) => edit('screenshotDisplayMode',event.target.value)}><option value="primary">Primary display only</option><option value="all">All displays</option></select></label>
       {[['approvedBrowserBuckets','Approved work browser bucket IDs'],['excludedApps','Excluded application EXE names'],['excludedDomains','Excluded website domains']].map(([field,label]) => <label key={field}>{label} (one per line)<textarea rows="3" value={value[field].join('\n')} onChange={(event) => edit(field,event.target.value.split('\n').map((line) => line.trim()).filter(Boolean))} /></label>)}
       <label>Screenshot excluded application EXE names (one per line)<textarea rows="3" disabled={!screenshotsAvailable} value={value.screenshotExcludedApps.join('\n')} onChange={(event) => edit('screenshotExcludedApps',event.target.value.split('\n').map((line) => line.trim()).filter(Boolean))} /></label>
-      <p className="monitoring-muted">A bucket ID alone does not identify a browser profile. IT must confirm a work-only source before approval. Never approve a bucket shared with personal profiles. Retention changes affect new uploads; existing records keep their original expiry.</p><Button type="submit" disabled={save.isPending || !draft}>Save policy</Button>{save.isError && <div role="alert">{save.error.message}</div>}{save.isSuccess && <p role="status">Policy saved.</p>}
+      <p className="monitoring-muted">A bucket ID alone does not identify a browser profile. IT must confirm a work-only source before approval. Never approve a bucket shared with personal profiles. Retention changes affect new uploads; existing records keep their original expiry.</p><Button type="submit" disabled={save.isPending || !draft}>Save policy</Button>{save.isError && <div role="alert" className="form-alert">{save.error.message}</div>}{save.isSuccess && <p role="status">Policy saved.</p>}
     </form> : <p>Activity sharing is {value.enabled ? 'enabled' : 'disabled'}. Browser sharing is {value.browserEnabled ? `restricted to approved work buckets (${value.browserUrlMode} URL detail${value.browserTitleEnabled ? ', page titles allowed for consenting devices' : ''})` : 'disabled'}. {value.requireAttendance && 'Only checked-in sessions are eligible.'}</p>}</>}
     <h3>Productivity classifications</h3><p className="monitoring-muted">Unmatched activity is neutral. Domain rules include subdomains; the most specific domain wins.</p>{rules.isError && <ErrorState error={rules.error} onRetry={rules.refetch} />}
     {rules.data?.map((item) => <div className="monitoring-row" key={item._id}><span>{item.kind}: {item.match} — {item.classification}</span>{isHr && <Button size="sm" variant="secondary" disabled={remove.isPending} onClick={() => remove.mutate(item._id)}>Remove</Button>}</div>)}{remove.isError && <div role="alert">{remove.error.message}</div>}

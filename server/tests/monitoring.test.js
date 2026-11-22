@@ -7,14 +7,14 @@ const mocks = vi.hoisted(() => ({
   event: { bulkWrite: vi.fn(), aggregate: vi.fn() },
   employee: { exists: vi.fn(), findOne: vi.fn(), find: vi.fn() },
   organization: { exists: vi.fn(), findOne: vi.fn() },
+  policy: { getPolicy: vi.fn(), updatePolicy: vi.fn() },
 }));
 vi.mock('../src/models/MonitoringDevice.js', () => ({ MonitoringDevice: mocks.device }));
 vi.mock('../src/models/ActivityEvent.js', () => ({ ActivityEvent: mocks.event }));
 vi.mock('../src/models.js', async (original) => ({ ...await original(), User: mocks.employee, Organization: mocks.organization }));
 vi.mock('../src/services/audit.service.js', () => ({ writeAudit: vi.fn() }));
 vi.mock('../src/services/monitoring-policy.service.js', async (original) => ({ ...await original(),
-  getPolicy: vi.fn().mockResolvedValue({ enabled: true, includeTitles: false, browserEnabled: false,
-    approvedBrowserBuckets: [], excludedApps: [], excludedDomains: [], requireAttendance: false, retentionDays: 30 }) }));
+  getPolicy: mocks.policy.getPolicy, updatePolicy: mocks.policy.updatePolicy }));
 
 import { createApp } from '../src/app.js';
 import { activityEventSchema } from '../src/validators/monitoring.schemas.js';
@@ -28,6 +28,9 @@ const device = { _id: '333333333333333333333333', ...deviceScope(employee), stat
 const token = 'x'.repeat(43);
 const event = () => ({ bucketId: 'window', sourceId: '7:slice', type: 'currentwindow', timestamp: new Date(Date.now() - 60_000).toISOString(), duration: 30, app: 'Code.exe' });
 const sessionCookie = () => `access_token=${jwt.sign({ org: employee.organizationId }, config.jwtSecret, { subject: employee._id, issuer: 'facetrack-pro' })}; XSRF-TOKEN=test`;
+const monitoringPolicy = { version: 1, enabled: true, includeTitles: false, browserEnabled: false, browserUrlMode: 'domain', browserTitleEnabled: false,
+  approvedBrowserBuckets: [], excludedApps: [], excludedDomains: [], requireAttendance: false, retentionDays: 30, screenshotsEnabled: false,
+  screenshotIntervalSeconds: 300, screenshotRetentionDays: 7, screenshotDisplayMode: 'primary', screenshotExcludedApps: [] };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,6 +39,8 @@ beforeEach(() => {
   mocks.organization.exists.mockResolvedValue(true);
   mocks.employee.findOne.mockResolvedValue(employee);
   mocks.organization.findOne.mockReturnValue({ select: vi.fn().mockResolvedValue({ _id: employee.organizationId }) });
+  mocks.policy.getPolicy.mockResolvedValue(monitoringPolicy);
+  mocks.policy.updatePolicy.mockImplementation(async (_organizationId, value) => ({ ...value, _id: '555555555555555555555555', version: value.version + 1 }));
 });
 
 describe('monitoring security and storage', () => {
@@ -114,7 +119,25 @@ describe('monitoring HTTP endpoints', () => {
     const response = await request(app).get('/api/monitoring/info');
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.0', retentionDays: 30, capabilities: { policies: true, screenshots: false } });
+    expect(response.body.screenshotStorage).toMatchObject({ provider: 'cloudinary', configured: false, code: 'SCREENSHOT_STORAGE_DISABLED' });
     expect(response.headers['cache-control']).toBe('no-store');
+  });
+  it('rejects enabling screenshots when this API lacks private storage', async () => {
+    mocks.employee.findOne.mockResolvedValue({ ...employee, role: 'HR' });
+    const response = await request(app).put('/api/monitoring/policy').set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test')
+      .send({ ...monitoringPolicy, screenshotsEnabled: true });
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('SCREENSHOT_STORAGE_DISABLED');
+    expect(mocks.policy.updatePolicy).not.toHaveBeenCalled();
+  });
+  it('saves and returns an enabled screenshot policy when Cloudinary is configured', async () => {
+    const configuredApp = createApp({ ...config, cloudinaryCloudName: 'cloud', cloudinaryApiKey: 'key', cloudinaryApiSecret: 'secret' });
+    mocks.employee.findOne.mockResolvedValue({ ...employee, role: 'HR' });
+    const response = await request(configuredApp).put('/api/monitoring/policy').set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test')
+      .send({ ...monitoringPolicy, screenshotsEnabled: true });
+    expect(response.status).toBe(200);
+    expect(response.body.item).toMatchObject({ version: 2, screenshotsEnabled: true });
+    expect(mocks.policy.updatePolicy).toHaveBeenCalledWith(employee.organizationId, expect.objectContaining({ screenshotsEnabled: true }));
   });
   it('requires authentication for the dashboard and agent upload', async () => {
     expect((await request(app).get('/api/monitoring/devices')).status).toBe(401);
