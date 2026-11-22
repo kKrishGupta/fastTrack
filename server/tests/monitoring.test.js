@@ -120,7 +120,7 @@ describe('monitoring HTTP endpoints', () => {
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.1', retentionDays: 30, capabilities: { policies: true, screenshots: false },
       installerUrl: 'https://github.com/kKrishGupta/fastTrack/releases/download/v1.2.1-internal.1/FaceTrackSetup.exe',
-      installer: { version: '1.2.1', sizeBytes: 185387850, sha256: '293daf41afc4839f33403beceaeb1e192dd38606e719901fa6c21bf64567ab43', signed: false } });
+      installer: { version: '1.2.1', sizeBytes: 185387799, sha256: 'a2c82098cfe9eac20cb318798f2db4ed3d81ac585b553b4cc7f057228a6e82d0', signed: false } });
     expect(response.body.screenshotStorage).toMatchObject({ provider: 'cloudinary', configured: false, code: 'SCREENSHOT_STORAGE_DISABLED' });
     expect(response.headers['cache-control']).toBe('no-store');
   });
