@@ -233,8 +233,14 @@ internal sealed class MainForm : Form
                 ? exclusions.EnumerateArray().Select(item => item.GetString()).Where(item => !string.IsNullOrWhiteSpace(item)).Select(item => item!).ToHashSet(StringComparer.OrdinalIgnoreCase)
                 : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var seconds = root.TryGetProperty("intervalSeconds", out var interval) ? Math.Clamp(interval.GetInt32(), 60, 3600) : 300;
-            screenshotTimer.Interval = seconds * 1000;
-            if (screenshotsEnabled) { screenshotTimer.Start(); activity.AppendText($"{DateTime.Now:t}  Disclosed screenshots enabled every {seconds / 60d:0.#} minutes.{Environment.NewLine}"); }
+            var nextInterval = seconds * 1000;
+            var wasRunning = screenshotTimer.Enabled;
+            if (screenshotTimer.Interval != nextInterval) screenshotTimer.Interval = nextInterval;
+            if (screenshotsEnabled)
+            {
+                if (!screenshotTimer.Enabled) screenshotTimer.Start();
+                if (!wasRunning) activity.AppendText($"{DateTime.Now:t}  Disclosed screenshots enabled every {seconds / 60d:0.#} minutes.{Environment.NewLine}");
+            }
             else screenshotTimer.Stop();
         }
         catch (Exception exception) { activity.AppendText($"{DateTime.Now:t}  Screenshot policy rejected: {exception.Message}{Environment.NewLine}"); screenshotTimer.Stop(); }
