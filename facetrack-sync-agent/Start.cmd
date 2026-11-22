@@ -3,7 +3,7 @@ title FaceTrack - ActivityWatch Monitoring
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
-  echo Install Node.js 20.19 or newer from https://nodejs.org/en/download then open this file again.
+  echo Install Node.js 24 LTS from https://nodejs.org/en/download then open this file again.
   pause
   exit /b 1
 )

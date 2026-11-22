@@ -36,12 +36,15 @@ describe('downloadable FaceTrack agent', () => {
   });
   it('contains exactly the runnable agent and selected server configuration, without credentials', () => {
     const files = unzipStored(createAgentArchive('https://fast-track-gules.vercel.app'));
-    expect(Object.keys(files).sort()).toEqual(['Connect.cmd', 'README.txt', 'Start.cmd', 'activitywatch.mjs', 'connection.json', 'index.mjs'].sort());
+    expect(Object.keys(files).sort()).toEqual(['Connect.cmd', 'README.txt', 'Start.cmd', 'activitywatch.mjs', 'checkpoint.mjs', 'outbox.mjs', 'privacy.mjs', 'screenshot-outbox.mjs', 'state-store.mjs', 'connection.json', 'index.mjs'].sort());
     expect(JSON.parse(files['connection.json'])).toEqual({ server: 'https://fast-track-gules.vercel.app' });
     expect(files['Connect.cmd']).toContain('"%~dp0index.mjs" connect');
     expect(files['Start.cmd']).toContain('"%~dp0index.mjs" run');
     expect(files['Connect.cmd'].replace(/\r\n/g, '')).not.toContain('\n');
     expect(files['index.mjs']).toContain("command === 'connect'");
+    const runtimeImports = [...Object.values(files).join('\n').matchAll(/from ['"]\.\/(.+?\.mjs)['"]/g)].map((match) => match[1]);
+    expect(runtimeImports.length).toBeGreaterThan(0);
+    expect(runtimeImports.filter((name) => !files[name])).toEqual([]);
     expect(files).not.toHaveProperty('.state.json');
     expect(files).not.toHaveProperty('.env');
   });

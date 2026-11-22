@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "architecture": "windows-x64",
+  "activitywatch": {
+    "version": "v0.14.3",
+    "url": "https://github.com/ActivityWatch/activitywatch/releases/download/v0.14.3/activitywatch-v0.14.3-windows-x86_64.zip",
+    "sha256": "f86fb8b226103d412d64c71a781817775180e71cd27a79481a0e4653d2da18c3",
+    "source": "https://github.com/ActivityWatch/activitywatch/tree/v0.14.3",
+    "components": {
+      "aw-core": "14dd37ccbfc026836fca592b96b82b85fbda7322",
+      "aw-client": "0fe5464a67132f8424e9e335f8e0cdee4ac689a2",
+      "aw-server": "277609e35de861399b0e831a4c1b494dbbde38a5",
+      "aw-qt": "c31456c1d64a5edc12b1d059e11868a371e51db3",
+      "aw-watcher-window": "76b3f6f5804095847470720cbcf96760887d7ac4",
+      "aw-watcher-afk": "fe882b63aa9a99ebe371c0b04165b794a6c22d15"
+    }
+  },
+  "node": {
+    "version": "v24.22.3",
+    "url": "https://nodejs.org/dist/v24.22.3/node-v24.22.3-win-x64.zip",
+    "sha256": "e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f",
+    "source": "https://nodejs.org/dist/v24.22.3/SHASUMS256.txt"
+  }
+}

@@ -12,14 +12,17 @@
     "start": "npm run start --workspace server",
     "build": "npm run build --workspace client",
     "test": "npm run test --workspace server",
-    "check": "npm run test && npm run test:agent && npm run build",
-    "test:agent": "node --test facetrack-sync-agent/activitywatch.test.mjs",
+    "check": "npm run test && npm run test:agent && npm run test:installer && npm run build",
+    "test:agent": "node --test facetrack-sync-agent/*.test.mjs",
+    "test:installer": "node --test installer/*.test.mjs",
     "agent:preview": "node facetrack-sync-agent/index.mjs preview",
     "agent:pair": "node facetrack-sync-agent/index.mjs pair",
-    "agent:start": "node facetrack-sync-agent/index.mjs run"
+    "agent:start": "node facetrack-sync-agent/index.mjs run",
+    "installer:stage": "node installer/build.mjs --refresh-bridge --stage-only",
+    "installer:build:test": "node installer/build.mjs --compile-only --nsis --internal-test-build"
   },
   "engines": {
-    "node": ">=20.19"
+    "node": ">=24 <25"
   },
   "dependencies": {
     "object-inspect": "^1.13.4"
