@@ -6,12 +6,14 @@ import { requireRole } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { agentStateSchema, createDeviceSchema, deviceParams, deviceStateSchema, deviceQuerySchema, enrollSchema, heartbeatSchema, ingestSchema, reportQuerySchema, policySchema, ruleSchema, rotationSchema, screenshotCaptureParams, screenshotCompleteSchema, screenshotQuerySchema, screenshotRequestSchema, timelineQuerySchema } from '../validators/monitoring.schemas.js';
+import { MONITORING_INSTALLER_RELEASE } from '../config/monitoring-release.js';
 
 export function createMonitoringRouter({ authenticate }) {
   const router = Router();
   router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   router.get('/info', (req, res) => {
     const screenshotsAvailable = controller.screenshotStorageAvailable(req.app.get('config'));
+    const installer = { ...MONITORING_INSTALLER_RELEASE, url: req.app.get('config').monitoringInstallerUrl || MONITORING_INSTALLER_RELEASE.url };
     res.json({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.0', retentionDays: RETENTION_DAYS,
       activityWatchVersion: '0.14.3', browserWatcherVersion: '0.6.0',
       browserWatcherUrl: 'https://chromewebstore.google.com/detail/activitywatch-web-watcher/nglaklhklhcoonedhgnpgddginnjdadi',
@@ -24,7 +26,7 @@ export function createMonitoringRouter({ authenticate }) {
           ? 'Private authenticated screenshot storage is configured on this API.'
           : 'This FaceTrack API has not detected all three required Cloudinary environment variables. Configure them on this backend and restart or redeploy it.',
       },
-      installerUrl: req.app.get('config').monitoringInstallerUrl });
+      installer, installerUrl: installer.url });
   });
   router.post('/enroll', rateLimit({ windowMs: 15 * 60_000, limit: 20 }), validate(enrollSchema), asyncHandler(controller.enroll));
   router.use('/agent', rateLimit({ windowMs: 60_000, limit: 3000 }), asyncHandler(async (req, res, next) => {

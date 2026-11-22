@@ -14,6 +14,20 @@ import { MonitoringInsights } from '../components/monitoring/MonitoringInsights'
 
 const time = (seconds = 0) => `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
 const when = (value) => value ? new Date(value).toLocaleString() : 'Not connected';
+const fileSize = (bytes) => bytes ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : 'Size unavailable';
+
+export function MonitoringInstaller({ integration, isHr }) {
+  const installer = integration?.installer || (integration?.installerUrl ? { url: integration.installerUrl } : null);
+  if (!installer?.url) return <div className="form-alert" role="status">The FaceTrack Monitoring Windows installer has not been published by this server. Ask your administrator for the approved installer; command-line setup is not offered.</div>;
+  return <>
+    <ol className="monitoring-steps"><li><strong>Install FaceTrack Monitoring</strong><p>Includes official ActivityWatch and the FaceTrack bridge.</p><a href={installer.url}>Download FaceTrackSetup.exe <Download size={13} /></a>
+      {(installer.version || installer.sizeBytes) && <small>Version {installer.version || 'unavailable'} · {fileSize(installer.sizeBytes)}</small>}
+      {installer.sha256 && <small>SHA-256 <code>{installer.sha256}</code></small>}
+    </li><li><strong>Enroll your work computer</strong><p>Read the disclosure, create a code below and paste it into the visible FaceTrack Monitoring window.</p></li><li><strong>Use the graphical controls</strong><p>Collectors and synchronization start automatically. Use the desktop window or tray menu to pause, resume, stop or restart monitoring.</p></li></ol>
+    {installer.signed === false && <div className="form-alert" role="note">Version {installer.version} is an unsigned internal QA build. Windows may show an unknown-publisher warning. Use it only for controlled FaceTrack testing until the production installer is code-signed.</div>}
+    {isHr && installer.channel && <p className="monitoring-muted">Release channel: {installer.channel}.</p>}
+  </>;
+}
 
 function Ranking({ title, items = [] }) {
   const max = Math.max(1, ...items.map((item) => item.seconds));
@@ -67,7 +81,7 @@ export function MonitoringPage() {
     <Card className="monitoring-card monitoring-setup">
       <div className="monitoring-row"><div><span className="eyebrow">Computer setup</span><h2>{isHr ? 'Connect employee computers' : 'Connect ActivityWatch to FaceTrack'}</h2></div><Badge tone={integration.isSuccess ? 'success' : 'warning'} dot>{integration.isSuccess ? 'FaceTrack API connected' : 'Checking connection'}</Badge></div>
       <p className="monitoring-muted">{isHr ? 'Each employee completes these steps in their own workspace. Their activity then appears here, scoped to your organization.' : 'Complete this setup on the computer whose work activity you want to share.'}</p>
-      {integration.data?.installerUrl ? <ol className="monitoring-steps"><li><strong>Install FaceTrack Monitoring</strong><p>Includes official ActivityWatch and the FaceTrack bridge.</p><a href={integration.data.installerUrl}>Download Windows installer <Download size={13} /></a></li><li><strong>Enroll your work computer</strong><p>Read the disclosure, create a code below and paste it into the visible FaceTrack Monitoring window.</p></li><li><strong>Use the graphical controls</strong><p>Collectors and synchronization start automatically. Use the desktop window or tray menu to pause, resume, stop or restart monitoring.</p></li></ol> : <div className="form-alert" role="status">The FaceTrack Monitoring Windows installer has not been published by this server. Ask your administrator for the approved installer; command-line setup is not offered.</div>}
+      <MonitoringInstaller integration={integration.data} isHr={isHr} />
       <details className="monitoring-browser-setup"><summary>Optional Chrome or Edge work-profile website tracking</summary><ol className="monitoring-steps">
         <li><strong>Use an approved work browser profile</strong><p>Do not add the watcher to a personal profile. ActivityWatch Web Watcher v{integration.data?.browserWatcherVersion || '0.6.0'} cannot label Chrome/Edge profiles separately.</p></li>
         <li><strong>Install the official extension</strong><p>Keep FaceTrack Monitoring running first. Chrome and Edge can install the same official Chrome Web Store extension.</p><a href={integration.data?.browserWatcherUrl || 'https://chromewebstore.google.com/detail/activitywatch-web-watcher/nglaklhklhcoonedhgnpgddginnjdadi'} target="_blank" rel="noreferrer">Open official ActivityWatch Web Watcher <ExternalLink size={13} /></a></li>
