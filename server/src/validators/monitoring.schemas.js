@@ -56,7 +56,9 @@ export const screenshotRequestSchema = z.object({
   captureId: z.string().uuid(), capturedAt: z.iso.datetime({ offset: true }),
   width: z.number().int().min(1).max(32768), height: z.number().int().min(1).max(32768),
   byteLength: z.number().int().min(1).max(10 * 1024 * 1024), sha256: z.string().regex(/^[a-f\d]{64}$/),
-}).strict();
+  format: z.enum(['png', 'jpg']).default('png'),
+}).strict().refine(({ format, byteLength }) => format !== 'jpg' || byteLength <= 30 * 1024,
+  { message: 'Compressed JPEG screenshots must not exceed 30 KB', path: ['byteLength'] });
 export const screenshotCompleteSchema = z.object({ captureId: z.string().uuid() }).strict();
 export const screenshotCaptureParams = z.object({ captureId: z.string().uuid() });
 export const screenshotQuerySchema = z.object({

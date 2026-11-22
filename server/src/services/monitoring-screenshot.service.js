@@ -7,6 +7,7 @@ import { deviceScope } from './monitoring.service.js';
 import { ApiError } from '../utils/api-error.js';
 
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const MAX_COMPRESSED_BYTES = 30 * 1024;
 
 export const storageAvailable = (config) => Boolean(config.cloudinaryCloudName && config.cloudinaryApiKey && config.cloudinaryApiSecret);
 
@@ -17,7 +18,7 @@ function storage(config) {
 }
 
 const publicCapture = (item) => Object.fromEntries([
-  '_id', 'employeeId', 'deviceId', 'captureId', 'storageProvider', 'status', 'capturedAt', 'width', 'height', 'byteLength', 'expiresAt', 'createdAt',
+  '_id', 'employeeId', 'deviceId', 'captureId', 'storageProvider', 'format', 'status', 'capturedAt', 'width', 'height', 'byteLength', 'expiresAt', 'createdAt',
 ].map((key) => [key, item[key]]));
 
 async function authorizedPolicy(device, config, capturedAt) {
@@ -39,39 +40,41 @@ function cloudinaryId(config, device, captureId, capturedAt) {
 
 export async function requestUpload(device, input, config) {
   const capturedAt = new Date(input.capturedAt);
+  const format = input.format === 'jpg' ? 'jpg' : 'png';
   const policy = await authorizedPolicy(device, config, capturedAt);
   const floor = Math.max(+new Date(device.collectAfter), Date.now() - policy.screenshotRetentionDays * 86400_000);
   if (+capturedAt < floor || +capturedAt > Date.now() + 60_000) throw new ApiError(400, 'SCREENSHOT_TIME_INVALID', 'Screenshot is outside the authorized collection period');
 
   let item = await ScreenshotCapture.findOne({ deviceId: device._id, captureId: input.captureId }).select('+cloudinaryPublicId +sha256');
   if (item) {
-    if (item.sha256 !== input.sha256 || item.byteLength !== input.byteLength) throw new ApiError(409, 'SCREENSHOT_ID_CONFLICT', 'Screenshot identifier was already used for different content');
+    if (item.sha256 !== input.sha256 || item.byteLength !== input.byteLength || (item.format || 'png') !== format) throw new ApiError(409, 'SCREENSHOT_ID_CONFLICT', 'Screenshot identifier was already used for different content');
     return { item: publicCapture(item), alreadyUploaded: item.status === 'available', uploadPath: item.status === 'available' ? undefined : `/agent/screenshots/${item.captureId}/content` };
   }
 
-  const latest = await ScreenshotCapture.findOne({ deviceId: device._id, captureId: { $ne: input.captureId }, status: { $in: ['pending', 'available'] } })
+  const latest = await ScreenshotCapture.findOne({ deviceId: device._id, captureId: { $ne: input.captureId }, status: 'available' })
     .sort({ capturedAt: -1 }).select('capturedAt').lean();
-  const minimumGap = Math.max(0, policy.screenshotIntervalSeconds * 1000 - 5000);
+  const minimumGap = Math.max(0, policy.screenshotIntervalSeconds * 1000 - 15000);
   if (latest && +capturedAt < +new Date(latest.capturedAt) + minimumGap) {
     throw new ApiError(429, 'SCREENSHOT_INTERVAL_NOT_ELAPSED', 'Screenshot was captured before the configured interval elapsed');
   }
 
   try {
     item = await ScreenshotCapture.create({ organizationId: device.organizationId, employeeId: device.employeeId, deviceId: device._id,
-      ...input, capturedAt, storageProvider: 'cloudinary', cloudinaryPublicId: cloudinaryId(config, device, input.captureId, capturedAt),
+      ...input, format, capturedAt, storageProvider: 'cloudinary', cloudinaryPublicId: cloudinaryId(config, device, input.captureId, capturedAt),
       expiresAt: new Date(+capturedAt + policy.screenshotRetentionDays * 86400_000) });
   } catch (error) {
     if (error.code !== 11000) throw error;
     item = await ScreenshotCapture.findOne({ deviceId: device._id, captureId: input.captureId }).select('+cloudinaryPublicId +sha256');
-    if (!item || item.sha256 !== input.sha256 || item.byteLength !== input.byteLength) throw new ApiError(409, 'SCREENSHOT_ID_CONFLICT', 'Screenshot identifier was already used for different content');
+    if (!item || item.sha256 !== input.sha256 || item.byteLength !== input.byteLength || (item.format || 'png') !== format) throw new ApiError(409, 'SCREENSHOT_ID_CONFLICT', 'Screenshot identifier was already used for different content');
   }
   return { item: publicCapture(item), alreadyUploaded: item.status === 'available', uploadPath: item.status === 'available' ? undefined : `/agent/screenshots/${item.captureId}/content` };
 }
 
 function uploadAuthenticated(client, item, bytes) {
+  const format = item.format === 'jpg' ? 'jpg' : 'png';
   return new Promise((resolve, reject) => {
     const stream = client.uploader.upload_stream({ resource_type: 'image', type: 'authenticated', public_id: item.cloudinaryPublicId,
-      format: 'png', overwrite: true, invalidate: false,
+      format, overwrite: true, invalidate: false,
       context: { captureId: item.captureId, sha256: item.sha256, organizationId: String(item.organizationId), employeeId: String(item.employeeId), deviceId: String(item.deviceId) },
     }, (error, result) => error ? reject(error) : resolve(result));
     stream.end(bytes);
@@ -79,14 +82,19 @@ function uploadAuthenticated(client, item, bytes) {
 }
 
 export async function uploadContent(device, captureId, bytes, contentType, config) {
-  if (contentType?.split(';', 1)[0].trim().toLowerCase() !== 'image/png' || !Buffer.isBuffer(bytes)
-    || bytes.length < PNG_SIGNATURE.length || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) {
-    throw new ApiError(415, 'SCREENSHOT_FORMAT_INVALID', 'Screenshot content must be a PNG image');
-  }
   const item = await ScreenshotCapture.findOne({ organizationId: device.organizationId, employeeId: device.employeeId, deviceId: device._id, captureId })
     .select('+cloudinaryPublicId +cloudinaryAssetId +cloudinaryVersion +sha256');
   if (!item) throw new ApiError(404, 'SCREENSHOT_NOT_FOUND', 'Screenshot upload was not requested');
   if (item.status === 'available') return { item: publicCapture(item), alreadyUploaded: true };
+  const format = item.format === 'jpg' ? 'jpg' : 'png';
+  const mimeType = contentType?.split(';', 1)[0].trim().toLowerCase();
+  const validPng = Buffer.isBuffer(bytes) && bytes.length >= PNG_SIGNATURE.length && bytes.subarray(0, 8).equals(PNG_SIGNATURE);
+  const validJpeg = Buffer.isBuffer(bytes) && bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+    && bytes.at(-2) === 0xff && bytes.at(-1) === 0xd9;
+  if (format === 'jpg' ? mimeType !== 'image/jpeg' || !validJpeg || bytes.length > MAX_COMPRESSED_BYTES : mimeType !== 'image/png' || !validPng) {
+    throw new ApiError(415, 'SCREENSHOT_FORMAT_INVALID', format === 'jpg'
+      ? 'Screenshot content must be a JPEG image no larger than 30 KB' : 'Screenshot content must be a PNG image');
+  }
   await authorizedPolicy(device, config, item.capturedAt);
   if (bytes.length !== item.byteLength || crypto.createHash('sha256').update(bytes).digest('hex') !== item.sha256) {
     throw new ApiError(409, 'SCREENSHOT_INTEGRITY_FAILED', 'Screenshot bytes did not match the authorized capture');
@@ -94,9 +102,13 @@ export async function uploadContent(device, captureId, bytes, contentType, confi
   let result;
   try { result = await uploadAuthenticated(storage(config), item, bytes); }
   catch (error) { throw new ApiError(502, 'SCREENSHOT_STORAGE_FAILED', `Cloudinary rejected the private screenshot upload: ${error.message}`); }
-  if (result?.resource_type !== 'image' || result?.type !== 'authenticated' || result?.format !== 'png' || result?.bytes !== item.byteLength) {
+  const expectedCloudinaryFormat = format === 'jpg' ? ['jpg', 'jpeg'] : ['png'];
+  const storedSizeValid = format === 'jpg'
+    ? result?.bytes === item.byteLength && result.bytes <= MAX_COMPRESSED_BYTES
+    : result?.bytes === item.byteLength;
+  if (result?.resource_type !== 'image' || result?.type !== 'authenticated' || !expectedCloudinaryFormat.includes(result?.format) || !storedSizeValid) {
     await storage(config).uploader.destroy(item.cloudinaryPublicId, { resource_type: 'image', type: 'authenticated', invalidate: true }).catch(() => {});
-    throw new ApiError(502, 'SCREENSHOT_STORAGE_INVALID', 'Cloudinary did not confirm the expected authenticated PNG asset');
+    throw new ApiError(502, 'SCREENSHOT_STORAGE_INVALID', 'Cloudinary did not confirm the expected private screenshot asset within the 30 KB storage limit');
   }
   item.cloudinaryAssetId = result.asset_id;
   item.cloudinaryVersion = result.version;
@@ -130,7 +142,7 @@ export async function getScreenshotAccess(user, id, config) {
   const item = await ScreenshotCapture.findOne({ ...deviceScope(user), _id: id, status: 'available', expiresAt: { $gt: new Date() } }).select('+cloudinaryPublicId');
   if (!item?.cloudinaryPublicId) throw new ApiError(404, 'SCREENSHOT_NOT_FOUND', 'Screenshot not found');
   const expiresAt = Math.floor(Date.now() / 1000) + 60;
-  const viewUrl = storage(config).utils.private_download_url(item.cloudinaryPublicId, 'png', {
+  const viewUrl = storage(config).utils.private_download_url(item.cloudinaryPublicId, item.format === 'jpg' ? 'jpg' : 'png', {
     resource_type: 'image', type: 'authenticated', expires_at: expiresAt, attachment: false,
   });
   return { item: publicCapture(item), viewUrl, expiresAt: new Date(expiresAt * 1000).toISOString() };

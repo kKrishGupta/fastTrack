@@ -63,12 +63,12 @@ internal static class AgentProcess
         return process;
     }
 
-    internal static async Task<bool> EnqueueScreenshotAsync(byte[] png, int width, int height, DateTimeOffset capturedAt)
+    internal static async Task<bool> EnqueueScreenshotAsync(byte[] image, int width, int height, DateTimeOffset capturedAt)
     {
         using var process = new Process { StartInfo = StartInfo(BridgePath, "enqueue-screenshot", "--installed-state",
-            "--captured-at", capturedAt.ToString("O"), "--width", width.ToString(), "--height", height.ToString()) };
+            "--captured-at", capturedAt.ToString("O"), "--width", width.ToString(), "--height", height.ToString(), "--format", "jpg") };
         process.Start();
-        await process.StandardInput.BaseStream.WriteAsync(png);
+        await process.StandardInput.BaseStream.WriteAsync(image);
         process.StandardInput.Close();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         try { await process.WaitForExitAsync(timeout.Token); }

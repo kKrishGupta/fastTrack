@@ -14,7 +14,7 @@ export function createMonitoringRouter({ authenticate }) {
   router.get('/info', (req, res) => {
     const screenshotsAvailable = controller.screenshotStorageAvailable(req.app.get('config'));
     const installer = { ...MONITORING_INSTALLER_RELEASE, url: req.app.get('config').monitoringInstallerUrl || MONITORING_INSTALLER_RELEASE.url };
-    res.json({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.0', retentionDays: RETENTION_DAYS,
+    res.json({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.1', retentionDays: RETENTION_DAYS,
       activityWatchVersion: '0.14.3', browserWatcherVersion: '0.6.0',
       browserWatcherUrl: 'https://chromewebstore.google.com/detail/activitywatch-web-watcher/nglaklhklhcoonedhgnpgddginnjdadi',
       capabilities: { policies: true, summaries: true, timeline: true, browserWatcher: true, screenshots: screenshotsAvailable },
@@ -38,7 +38,7 @@ export function createMonitoringRouter({ authenticate }) {
   router.patch('/agent/state', validate(agentStateSchema), asyncHandler(controller.agentState));
   router.post('/agent/events', validate(ingestSchema), asyncHandler(controller.ingest));
   router.post('/agent/screenshots/request-upload', validate(screenshotRequestSchema), asyncHandler(controller.requestScreenshotUpload));
-  router.post('/agent/screenshots/:captureId/content', validate(screenshotCaptureParams, 'params'), raw({ type: 'image/png', limit: '10mb' }), asyncHandler(controller.uploadScreenshotContent));
+  router.post('/agent/screenshots/:captureId/content', validate(screenshotCaptureParams, 'params'), raw({ type: ['image/png', 'image/jpeg'], limit: '10mb' }), asyncHandler(controller.uploadScreenshotContent));
   router.post('/agent/screenshots/complete', validate(screenshotCompleteSchema), asyncHandler(controller.completeScreenshotUpload));
   router.post('/agent/credentials/rotate', validate(rotationSchema), asyncHandler(controller.rotate));
   router.post('/agent/revoke', asyncHandler(controller.revokeSelf));

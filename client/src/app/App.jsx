@@ -16,6 +16,7 @@ import { WfhApprovalsPage } from '../pages/hr/WfhApprovalsPage';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
 import { EnrollmentRequiredRoute } from '../routes/EnrollmentRequiredRoute';
 import { MonitoringPage } from '../pages/MonitoringPage';
+import { ScreenshotsPage } from '../pages/hr/ScreenshotsPage';
 
 export function App() {
   return (
@@ -37,6 +38,7 @@ export function App() {
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="wfh-requests" element={<WfhApprovalsPage />} />
           <Route path="monitoring" element={<MonitoringPage />} />
+          <Route path="screenshots" element={<ScreenshotsPage />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute role="Employee" />}>

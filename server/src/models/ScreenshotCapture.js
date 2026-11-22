@@ -9,7 +9,7 @@ const schema = new mongoose.Schema({
   cloudinaryPublicId: { type: String, required: true, select: false },
   cloudinaryAssetId: { type: String, select: false },
   cloudinaryVersion: { type: Number, select: false },
-  format: { type: String, enum: ['png'], default: 'png' },
+  format: { type: String, enum: ['png', 'jpg'], default: 'png' },
   status: { type: String, enum: ['pending', 'available'], default: 'pending', index: true },
   capturedAt: { type: Date, required: true, index: true },
   width: { type: Number, required: true, min: 1, max: 32768 },

@@ -250,6 +250,8 @@ internal sealed class MainForm : Form
             if (capture is null) return;
             if (!await AgentProcess.EnqueueScreenshotAsync(capture.Value.Bytes, capture.Value.Width, capture.Value.Height, DateTimeOffset.UtcNow))
                 activity.AppendText($"{DateTime.Now:t}  Screenshot was skipped because the encrypted queue was unavailable.{Environment.NewLine}");
+            else
+                activity.AppendText($"{DateTime.Now:t}  Compressed screenshot queued ({capture.Value.Bytes.Length / 1024d:0.0} KB, {capture.Value.Width} × {capture.Value.Height}).{Environment.NewLine}");
         }
         catch (Exception exception) { activity.AppendText($"{DateTime.Now:t}  Screenshot skipped: {exception.Message}{Environment.NewLine}"); }
         finally { screenshotCaptureInProgress = false; }

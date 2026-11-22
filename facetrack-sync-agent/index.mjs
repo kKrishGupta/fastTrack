@@ -43,10 +43,10 @@ async function api(path, options = {}) {
   return response.json();
 }
 
-async function uploadScreenshot(path, bytes) {
+async function uploadScreenshot(path, bytes, format = 'png') {
   const response = await fetch(`${state.server}/api/monitoring${path}`, {
     method: 'POST', redirect: 'error', signal: AbortSignal.timeout(60_000),
-    headers: { 'Content-Type': 'image/png', Authorization: `Bearer ${state.token}` }, body: bytes,
+    headers: { 'Content-Type': format === 'jpg' ? 'image/jpeg' : 'image/png', Authorization: `Bearer ${state.token}` }, body: bytes,
   });
   if (!response.ok) {
     let payload;
@@ -115,13 +115,18 @@ async function enqueueScreenshot() {
   if (!state.policy?.enabled || !state.policy?.screenshotsEnabled || state.localPaused || Date.now() - Number(state.policyFetchedAt) > 120_000) throw new Error('Screenshot capture is not currently authorized');
   const capturedAt = new Date(argument('--captured-at'));
   const width = Number(argument('--width')), height = Number(argument('--height'));
+  const format = argument('--format') || 'png';
   if (!Number.isFinite(+capturedAt) || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 32768 || height > 32768) throw new Error('Invalid screenshot metadata');
+  if (!['png', 'jpg'].includes(format)) throw new Error('Screenshot format must be png or jpg');
   const chunks = []; let length = 0;
-  for await (const chunk of process.stdin) { length += chunk.length; if (length > 10 * 1024 * 1024) throw new Error('Screenshot exceeds the 10 MB limit'); chunks.push(chunk); }
+  const limit = format === 'jpg' ? 30 * 1024 : 10 * 1024 * 1024;
+  for await (const chunk of process.stdin) { length += chunk.length; if (length > limit) throw new Error(`Screenshot exceeds the ${format === 'jpg' ? '30 KB' : '10 MB'} limit`); chunks.push(chunk); }
   const bytes = Buffer.concat(chunks);
-  if (bytes.length < 8 || !bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error('Screenshot must be a PNG image');
+  const validPng = bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+  const validJpeg = bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff && bytes.at(-2) === 0xff && bytes.at(-1) === 0xd9;
+  if (format === 'png' ? !validPng : !validJpeg) throw new Error(`Screenshot bytes are not a valid ${format === 'jpg' ? 'JPEG' : 'PNG'} image`);
   const metadata = { captureId: randomUUID(), capturedAt: capturedAt.toISOString(), width, height, byteLength: bytes.length,
-    sha256: createHash('sha256').update(bytes).digest('hex') };
+    sha256: createHash('sha256').update(bytes).digest('hex'), format };
   const queue = new ScreenshotOutbox(join(dirname(statePath), 'screenshots.sqlite'), state.outboxKey);
   try { queue.enqueue(metadata, bytes); } finally { queue.close(); }
   console.log(metadata.captureId);
@@ -227,7 +232,7 @@ async function run() {
               const ticket = await api('/agent/screenshots/request-upload', { method: 'POST', body: capture.metadata });
               if (!ticket.alreadyUploaded) {
                 if (!/^\/agent\/screenshots\/[0-9a-f-]{36}\/content$/.test(ticket.uploadPath || '')) throw new Error('FaceTrack returned an invalid screenshot upload path');
-                await uploadScreenshot(ticket.uploadPath, capture.bytes);
+                await uploadScreenshot(ticket.uploadPath, capture.bytes, capture.metadata.format);
               }
               screenshotOutbox.remove(capture.captureId);
             }

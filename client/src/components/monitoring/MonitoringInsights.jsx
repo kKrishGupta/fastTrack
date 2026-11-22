@@ -70,7 +70,7 @@ function ScreenshotGallery({ userId, isHr, employeeId, hours, devices }) {
             <span className="monitoring-thumbnail-placeholder">{isLoading ? 'Loading…' : isSelected ? 'Click to close' : 'Click to view'}</span>
             {isHr && <strong>{item.employeeId?.name || 'Employee'}</strong>}
             <span>{new Date(item.capturedAt).toLocaleString()}</span>
-            <small>{item.width} × {item.height} · {Math.ceil(item.byteLength / 1024)} KB · retained until {new Date(item.expiresAt).toLocaleDateString()}</small>
+            <small>{item.width} × {item.height} · {Math.ceil(item.byteLength / 1024)} KB{item.format === 'jpg' ? ' compressed (30 KB max)' : ''} · retained until {new Date(item.expiresAt).toLocaleDateString()}</small>
           </button>
         );
       })}
@@ -93,7 +93,7 @@ function ScreenshotGallery({ userId, isHr, employeeId, hours, devices }) {
         </div>
         <img src={selected.viewUrl} alt={`Work screenshot captured ${new Date(selected.item.capturedAt).toLocaleString()}`} />
         <figcaption>
-          {selected.item.width} × {selected.item.height} · {Math.ceil(selected.item.byteLength / 1024)} KB ·
+          {selected.item.width} × {selected.item.height} · {Math.ceil(selected.item.byteLength / 1024)} KB{selected.item.format === 'jpg' ? ' compressed (30 KB max)' : ''} ·
           Retained until {new Date(selected.item.expiresAt).toLocaleString()}
         </figcaption>
       </figure>

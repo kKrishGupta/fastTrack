@@ -15,6 +15,7 @@ vi.mock('../src/services/monitoring-policy.service.js', () => ({ getPolicy: mock
 vi.mock('../src/services/monitoring.service.js', () => ({ deviceScope: (user) => ({ organizationId: user.organizationId, ...(user.role === 'Employee' && { employeeId: user._id }) }) }));
 
 import { getScreenshotAccess, requestUpload, uploadContent } from '../src/services/monitoring-screenshot.service.js';
+import { screenshotRequestSchema } from '../src/validators/monitoring.schemas.js';
 
 const config = Object.freeze({ cloudinaryCloudName: 'tenant-cloud', cloudinaryApiKey: 'key', cloudinaryApiSecret: 'secret', cloudinaryScreenshotFolder: 'facetrack/screenshots' });
 const device = { _id: '333333333333333333333333', organizationId: '222222222222222222222222', employeeId: '111111111111111111111111', status: 'active', collectAfter: '2026-01-01T00:00:00Z', screenshotConsentAt: new Date() };
@@ -57,6 +58,28 @@ it('validates PNG bytes and stores only an authenticated Cloudinary asset', asyn
   expect(item.cloudinaryAssetId).toBe('asset');
   expect(item.save).toHaveBeenCalledOnce();
   expect(result.item.captureId).toBe(input.captureId);
+});
+
+it('stores new JPEG captures as authenticated assets no larger than 30 KB', async () => {
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(20 * 1024, 17), Buffer.from([0xff, 0xd9])]);
+  const { createHash } = await import('node:crypto');
+  const jpegInput = { ...input, format: 'jpg', byteLength: jpeg.length, sha256: createHash('sha256').update(jpeg).digest('hex') };
+  const item = { _id: '444444444444444444444444', ...jpegInput, cloudinaryPublicId: 'facetrack/screenshots/tenant/capture-jpg', storageProvider: 'cloudinary', status: 'pending',
+    organizationId: device.organizationId, employeeId: device.employeeId, deviceId: device._id, save: vi.fn() };
+  mocks.findOne.mockReturnValue({ select: vi.fn().mockResolvedValue(item) });
+  mocks.uploadStream.mockImplementation((options, callback) => ({ end: (bytes) => callback(null, {
+    asset_id: 'jpeg-asset', version: 8, bytes: bytes.length, resource_type: 'image', type: 'authenticated', format: 'jpg',
+  }) }));
+
+  const result = await uploadContent(device, jpegInput.captureId, jpeg, 'image/jpeg', config);
+  expect(mocks.uploadStream.mock.calls[0][0]).toMatchObject({ type: 'authenticated', format: 'jpg' });
+  expect(result.item).toMatchObject({ format: 'jpg', byteLength: jpeg.length });
+  expect(item.status).toBe('available');
+});
+
+it('rejects JPEG metadata above the 30 KB storage limit', () => {
+  expect(screenshotRequestSchema.safeParse({ ...input, format: 'jpg', byteLength: 30 * 1024 + 1 }).success).toBe(false);
+  expect(screenshotRequestSchema.safeParse({ ...input, format: 'jpg', byteLength: 30 * 1024 }).success).toBe(true);
 });
 
 it('rejects bytes that do not match the authorized digest', async () => {

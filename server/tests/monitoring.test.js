@@ -118,9 +118,9 @@ describe('monitoring HTTP endpoints', () => {
   it('identifies the deployed ActivityWatch protocol without exposing activity or credentials', async () => {
     const response = await request(app).get('/api/monitoring/info');
     expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.0', retentionDays: 30, capabilities: { policies: true, screenshots: false },
-      installerUrl: 'https://github.com/kKrishGupta/fastTrack/releases/download/v1.2.0-internal.1/FaceTrackSetup.exe',
-      installer: { version: '1.2.0', sizeBytes: 188720289, sha256: '899d419fa2fb6d34de6225eddea8862ffa949256b73a417165be398a70c24669', signed: false } });
+    expect(response.body).toMatchObject({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.1', retentionDays: 30, capabilities: { policies: true, screenshots: false },
+      installerUrl: 'https://github.com/kKrishGupta/fastTrack/releases/download/v1.2.1-internal.1/FaceTrackSetup.exe',
+      installer: { version: '1.2.1', sizeBytes: 185387850, sha256: '293daf41afc4839f33403beceaeb1e192dd38606e719901fa6c21bf64567ab43', signed: false } });
     expect(response.body.screenshotStorage).toMatchObject({ provider: 'cloudinary', configured: false, code: 'SCREENSHOT_STORAGE_DISABLED' });
     expect(response.headers['cache-control']).toBe('no-store');
   });

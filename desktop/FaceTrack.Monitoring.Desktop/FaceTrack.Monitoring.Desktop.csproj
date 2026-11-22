@@ -10,4 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>1.2.1</Version>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FaceTrack.Monitoring.Desktop.Tests" />
+  </ItemGroup>
 </Project>

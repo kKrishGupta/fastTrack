@@ -1,9 +1,9 @@
 export const MONITORING_INSTALLER_RELEASE = Object.freeze({
-  version: '1.2.0',
+  version: '1.2.1',
   channel: 'internal-qa',
   filename: 'FaceTrackSetup.exe',
-  url: 'https://github.com/kKrishGupta/fastTrack/releases/download/v1.2.0-internal.1/FaceTrackSetup.exe',
-  sizeBytes: 188720289,
-  sha256: '899d419fa2fb6d34de6225eddea8862ffa949256b73a417165be398a70c24669',
+  url: 'https://github.com/kKrishGupta/fastTrack/releases/download/v1.2.1-internal.1/FaceTrackSetup.exe',
+  sizeBytes: 185387850,
+  sha256: '293daf41afc4839f33403beceaeb1e192dd38606e719901fa6c21bf64567ab43',
   signed: false,
 });
