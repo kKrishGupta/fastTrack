@@ -22,6 +22,7 @@ Updated 2026-11-22 (Asia/Calcutta). The working tree continues the FaceTrack pro
 - Installer stage: 3,362 files in the verified manifest, with debug source maps pruned.
 - Final rebuilt internal artifact: `installer/output/FaceTrackSetup.exe`, FaceTrack Monitoring **1.2.1**, **185,387,799 bytes**, SHA-256 **`A2C82098CFE9EAC20CB318798F2DB4ED3D81AC585B553B4CC7F057228A6E82D0`**, Authenticode **NotSigned**.
 - Screenshot compression verification: a generated 1920×1080 desktop capture encoded to **30,458 bytes (29.7 KB), 640×360 JPEG**; server rejects new JPEG captures above 30 KB and the gallery displays the stored size and limit.
+- Real installed workflow: policy refreshes no longer reset the capture timer; the desktop captured an **800×450 JPEG of 30,349 bytes (29.6 KB)** and MongoDB recorded it as **available** in private Cloudinary storage.
 - Isolated silent fresh install returned 0; all 3,362 installed payload hashes matched; upgrade from previous install returned 0; preflight disk-space check verified error 112 abort.
 - Desktop process launches cleanly (`FaceTrackMonitoring.exe --shutdown` returned 0).
 - Normal silent uninstall removes the program directory, registration, shortcuts and preserves user data by default.
