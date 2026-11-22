@@ -40,6 +40,8 @@ Configure these environment variables in the Render dashboard rather than upload
 - `BIOMETRIC_KEY`, generated with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`
 - `FACE_SIMILARITY_THRESHOLD=90`
 - `FACE_EVIDENCE_RETENTION_DAYS=30`
+- optional `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`; configure all three server-side or omit all three to disable screenshots
+- `CLOUDINARY_SCREENSHOT_FOLDER=facetrack/screenshots` (use a dedicated product folder)
 - `RESEND_API_KEY` from the Resend API Keys page when invitation email is enabled
 - `RESEND_FROM_EMAIL=attendance@your-domain.example`, using a sender on a domain verified in Resend
 
@@ -74,6 +76,8 @@ Deploy the Vite client separately as a Render **Static Site**:
 After changing either public URL, update both services' environment variables and redeploy them.
 
 ## Vercel frontend with Render API
+
+For the official ActivityWatch bundle, deploy frontend/API together after review and follow [the product integration guide](activitywatch-product-integration.md). Keep the existing Vercel/Render routing. Publish a verified installer separately and set optional `MONITORING_INSTALLER_URL` only after release checks. Collectors run on employee PCs, never Render. Screenshot capability remains false unless all Cloudinary credentials are configured. Keep the API secret in Render only; never expose it through a `VITE_` variable, React response or installer payload.
 
 The repository includes equivalent `vercel.json` files at the repository root and in `client/`. Vercel uses the file that belongs to the configured project root. They proxy browser requests from `/api/*` to the Render API and provide the SPA fallback for React Router. Keep `VITE_API_BASE_URL=/api` (or leave it unset) so authentication cookies remain first-party on the Vercel origin.
 

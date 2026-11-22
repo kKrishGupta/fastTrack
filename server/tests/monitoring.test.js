@@ -12,9 +12,14 @@ vi.mock('../src/models/MonitoringDevice.js', () => ({ MonitoringDevice: mocks.de
 vi.mock('../src/models/ActivityEvent.js', () => ({ ActivityEvent: mocks.event }));
 vi.mock('../src/models.js', async (original) => ({ ...await original(), User: mocks.employee, Organization: mocks.organization }));
 vi.mock('../src/services/audit.service.js', () => ({ writeAudit: vi.fn() }));
+vi.mock('../src/services/monitoring-policy.service.js', async (original) => ({ ...await original(),
+  getPolicy: vi.fn().mockResolvedValue({ enabled: true, includeTitles: false, browserEnabled: false,
+    approvedBrowserBuckets: [], excludedApps: [], excludedDomains: [], requireAttendance: false, retentionDays: 30 }) }));
 
 import { createApp } from '../src/app.js';
 import { activityEventSchema } from '../src/validators/monitoring.schemas.js';
+import { Outbox } from '../../facetrack-sync-agent/outbox.mjs';
+import { normalizeEvents } from '../../facetrack-sync-agent/activitywatch.mjs';
 import { activityReport, authenticateDevice, changeDeviceState, deviceScope, enrollDevice, hashSecret, ingestActivity, listDevices, prepareEvents } from '../src/services/monitoring.service.js';
 
 const config = { clientOrigin: 'http://localhost:5173', jwtSecret: 'monitoring-test-secret-at-least-32-characters', trustProxy: false };
@@ -51,7 +56,7 @@ describe('monitoring security and storage', () => {
     await expect(authenticateDevice(token)).rejects.toMatchObject({ status: 401 });
     mocks.employee.exists.mockResolvedValue(false);
     await expect(authenticateDevice(token)).rejects.toMatchObject({ status: 401 });
-    expect(mocks.device.findOne).toHaveBeenCalledWith(expect.objectContaining({ tokenHash: hashSecret(token), status: { $in: ['active', 'paused'] } }));
+    expect(mocks.device.findOne).toHaveBeenCalledWith(expect.objectContaining({ $or: expect.arrayContaining([{ tokenHash: hashSecret(token) }]), status: { $in: ['active', 'paused'] } }));
   });
   it('scopes employee access to self and HR access to the organization', async () => {
     expect(deviceScope(employee)).toEqual({ organizationId: employee.organizationId, employeeId: employee._id });
@@ -108,7 +113,7 @@ describe('monitoring HTTP endpoints', () => {
   it('identifies the deployed ActivityWatch protocol without exposing activity or credentials', async () => {
     const response = await request(app).get('/api/monitoring/info');
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.1.0', retentionDays: 30 });
+    expect(response.body).toMatchObject({ provider: 'ActivityWatch', protocolVersion: 1, agentVersion: '1.2.0', retentionDays: 30, capabilities: { policies: true, screenshots: false } });
     expect(response.headers['cache-control']).toBe('no-store');
   });
   it('requires authentication for the dashboard and agent upload', async () => {
@@ -127,6 +132,38 @@ describe('monitoring HTTP endpoints', () => {
     expect(response.status).toBe(200);
     expect(response.body.accepted).toBe(1);
     expect(response.headers['cache-control']).toBe('no-store');
+  });
+  it('syncs official-shaped events through a durable queue and the real HTTP schema/ingestion path', async () => {
+    const box = new Outbox(':memory:', Buffer.alloc(32, 7).toString('base64'));
+    const from = new Date(Date.now() - 120_000).toISOString(), to = new Date(Date.now() - 60_000).toISOString();
+    try {
+      box.reconcile(device.collectAfter.toISOString());
+      const records = normalizeEvents({ id: 'window', type: 'currentwindow' }, [{ id: 1, timestamp: from, duration: 60, data: { app: 'Code.exe', title: 'excluded' } }], Date.parse(from), Date.parse(to));
+      box.stage('window', from, to, records);
+      await expect(box.flush(async () => { throw new Error('network disconnected'); })).rejects.toThrow('disconnected');
+      expect(box.stats().count).toBe(1);
+      mocks.device.findOne.mockResolvedValueOnce({ ...device, status: 'paused' });
+      await expect(box.flush(async (events) => {
+        const response = await request(app).post('/api/monitoring/agent/events').set('Authorization', `Bearer ${token}`).send({ events });
+        if (response.status !== 200) throw new Error(`HTTP ${response.status}`);
+        return response.body;
+      })).rejects.toThrow('409');
+      expect(box.stats().count).toBe(1);
+      await box.flush(async (events) => {
+        const response = await request(app).post('/api/monitoring/agent/events').set('Authorization', `Bearer ${token}`).send({ events });
+        expect(response.status).toBe(200);
+        return response.body;
+      });
+      expect(box.stats().count).toBe(0);
+      const stored = mocks.event.bulkWrite.mock.calls[0][0][0].updateOne.update.$set;
+      expect(stored).toMatchObject({ organizationId: employee.organizationId, employeeId: employee._id, app: 'Code.exe' });
+      expect(stored.title).toBeUndefined();
+    } finally { box.close(); }
+  });
+  it('requires sessions for new reports/policies and HR role for configuration writes', async () => {
+    for (const path of ['/summary','/timeline','/policy','/rules']) expect((await request(app).get(`/api/monitoring${path}`)).status).toBe(401);
+    expect((await request(app).put('/api/monitoring/policy').set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test').send({})).status).toBe(403);
+    expect((await request(app).post('/api/monitoring/rules').set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test').send({})).status).toBe(403);
   });
   it('does not accept a credential without the Bearer scheme', async () => {
     const response = await request(app).get('/api/monitoring/agent/status').set('Authorization', token);
@@ -158,9 +195,9 @@ describe('monitoring HTTP endpoints', () => {
     expect((await request(app).post('/api/monitoring/agent/heartbeat').send({})).status).toBe(401);
     const invalid = await request(app).post('/api/monitoring/agent/heartbeat').set('Authorization', `Bearer ${token}`).send({ activityWatchAvailable: true, watchers: ['arbitrary-data'] });
     expect(invalid.status).toBe(400);
-    const valid = await request(app).post('/api/monitoring/agent/heartbeat').set('Authorization', `Bearer ${token}`).send({ activityWatchAvailable: true, watchers: ['currentwindow', 'afkstatus'] });
+    const valid = await request(app).post('/api/monitoring/agent/heartbeat').set('Authorization', `Bearer ${token}`).send({ activityWatchAvailable: true, watchers: ['currentwindow', 'afkstatus', 'web.tab.current'], browserBuckets: ['aw-watcher-web-work', 'aw-watcher-web-work'] });
     expect(valid.status).toBe(200);
-    expect(mocks.device.updateOne).toHaveBeenLastCalledWith({ _id: device._id }, { $set: { lastSeenAt: expect.any(Date), activityWatchAvailable: true, watchers: ['currentwindow', 'afkstatus'] } });
+    expect(mocks.device.updateOne).toHaveBeenLastCalledWith({ _id: device._id }, { $set: { lastSeenAt: expect.any(Date), activityWatchAvailable: true, watchers: ['currentwindow', 'afkstatus', 'web.tab.current'], browserBuckets: ['aw-watcher-web-work'] } });
   });
   it('restricts employee directory access to HR in the same organization', async () => {
     const forbidden = await request(app).get('/api/monitoring/employees').set('Cookie', sessionCookie());

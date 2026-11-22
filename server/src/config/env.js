@@ -42,6 +42,11 @@ const environmentSchema = z
     FACE_SIMILARITY_THRESHOLD: z.coerce.number().min(70).max(100).default(90),
     FACE_EVIDENCE_RETENTION_DAYS: z.coerce.number().int().min(1).max(90).default(30),
     BIOMETRIC_KEY: z.string().trim().optional(),
+    MONITORING_INSTALLER_URL: z.string().url().startsWith('https://').optional(),
+    CLOUDINARY_CLOUD_NAME: z.string().trim().min(1).optional(),
+    CLOUDINARY_API_KEY: z.string().trim().min(1).optional(),
+    CLOUDINARY_API_SECRET: z.string().trim().min(1).optional(),
+    CLOUDINARY_SCREENSHOT_FOLDER: z.string().trim().regex(/^[A-Za-z0-9_/-]+$/).default('facetrack/screenshots'),
   })
   .superRefine((value, context) => {
     const allowedOrigins = [value.CLIENT_ORIGIN, ...(value.ALLOWED_ORIGINS || [])];
@@ -75,6 +80,10 @@ const environmentSchema = z
       if (value.BIOMETRIC_KEY && Buffer.from(value.BIOMETRIC_KEY, 'base64').length !== 32) {
         context.addIssue({ code: 'custom', path: ['BIOMETRIC_KEY'], message: 'BIOMETRIC_KEY must be a base64-encoded 32-byte key' });
       }
+    }
+    const cloudinary = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+    if (cloudinary.some((field) => value[field]) && !cloudinary.every((field) => value[field])) {
+      context.addIssue({ code: 'custom', path: ['CLOUDINARY_CLOUD_NAME'], message: 'CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET must be configured together' });
     }
   });
 
@@ -114,5 +123,10 @@ export function loadConfig(source = process.env) {
     faceSimilarityThreshold: env.FACE_SIMILARITY_THRESHOLD,
     faceEvidenceRetentionDays: env.FACE_EVIDENCE_RETENTION_DAYS,
     biometricKey: env.BIOMETRIC_KEY,
+    monitoringInstallerUrl: env.MONITORING_INSTALLER_URL,
+    cloudinaryCloudName: env.CLOUDINARY_CLOUD_NAME,
+    cloudinaryApiKey: env.CLOUDINARY_API_KEY,
+    cloudinaryApiSecret: env.CLOUDINARY_API_SECRET,
+    cloudinaryScreenshotFolder: env.CLOUDINARY_SCREENSHOT_FOLDER.replace(/^\/+|\/+$/g, ''),
   });
 }

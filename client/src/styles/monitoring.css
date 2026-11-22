@@ -45,6 +45,20 @@
 .monitoring-steps p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 10px 0 14px; }
 .monitoring-steps a { display: flex; gap: 6px; align-items: center; width: fit-content; margin-top: 10px; color: var(--forest); font-size: 13px; font-weight: 700; text-decoration: underline; }
 .monitoring-setup > p a { color: var(--forest); text-decoration: underline; }
+.monitoring-browser-setup { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 16px; }
+.monitoring-browser-setup summary { cursor: pointer; font-weight: 700; }
+.monitoring-screenshot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.monitoring-screenshot-grid button { display: grid; gap: 6px; text-align: left; border: 1px solid var(--line); border-radius: 12px; background: var(--cream); color: var(--ink); padding: 14px; cursor: pointer; }
+.monitoring-screenshot-grid button > img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--line); }
+.monitoring-thumbnail-placeholder { display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; background: var(--line); color: var(--muted); }
+.monitoring-screenshot-grid small { color: var(--muted); }
+.monitoring-gallery-filters, .monitoring-pagination { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 14px 0; }
+.monitoring-gallery-filters label { display: grid; gap: 6px; font-size: 13px; }
+.monitoring-gallery-filters input, .monitoring-gallery-filters select { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--surface); color: var(--ink); }
+.monitoring-pagination { justify-content: center; align-items: center; }
+.monitoring-screenshot-view { margin: 18px 0 0; }
+.monitoring-screenshot-view img { display: block; max-width: 100%; max-height: 70vh; border: 1px solid var(--line); border-radius: 12px; object-fit: contain; }
+.monitoring-screenshot-view figcaption { color: var(--muted); font-size: 12px; margin-top: 8px; }
 .monitoring-pairing details { border-top: 1px solid var(--line); padding-top: 12px; }
 .monitoring-pairing summary { cursor: pointer; font-size: 13px; font-weight: 700; }
 .monitoring-pairing details pre { margin-top: 10px; }

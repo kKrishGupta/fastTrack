@@ -97,8 +97,8 @@ npm.cmd run dev:server
 # Start only Vite/React client
 npm.cmd run dev:client
 
-# Seed or refresh development users
-npm.cmd run seed
+# Create test users through the existing registration/invitation flow.
+# This repository has no root seed script.
 
 # Run backend tests
 npm.cmd test
@@ -151,3 +151,7 @@ server/src/
 Geofence decisions and face-match authorization are made server-side. AWS Rekognition provides probabilistic 1:1 comparison; a fresh guided camera frame is quality checked but is not certified presentation-attack detection. Keep a human review path, calibrate the threshold for your workforce, obtain required consent, and complete applicable biometric/privacy/employment-law assessments before production use.
 
 See [architecture](docs/architecture.md), [API](docs/api.md), [security](docs/security.md), and [local deployment](docs/deployment.md).
+
+## Official ActivityWatch integration
+
+Use Node 24 LTS for workspace checks and bridge development. The unified Windows package bundles the official ActivityWatch v0.14.3 distribution, Node v24.22.3 and a self-contained FaceTrack status application; employees install no runtime and use no terminal. Installation, privacy controls, build commands and release blockers are in the [ActivityWatch product guide](docs/activitywatch-product-integration.md). An unsigned internal-test installer is compiled and isolated-install tested; production signing, clean-VM acceptance and a live consenting employee pilot remain required.

@@ -13,3 +13,11 @@ Thumbs.db
 .idea/
 facetrack-sync-agent/.state.json
 facetrack-sync-agent/.state.json.tmp
+.tools/
+installer/cache/
+installer/stage/
+installer/output/
+facetrack-sync-agent/*.sqlite*
+desktop/**/bin/
+desktop/**/obj/
+activitywatch-master/

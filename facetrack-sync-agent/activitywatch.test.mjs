@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeEvents, readEvents, validateServer } from './activitywatch.mjs';
+import { inspectActivityWatch, normalizeEvents, readEvents, validateServer } from './activitywatch.mjs';
 
 const start = Date.parse('2026-11-21T10:00:00Z');
 const bucket = { id: 'aw-window_test', type: 'currentwindow' };
@@ -18,19 +18,26 @@ test('retries use a stable key and separate intervals have different keys', () =
   assert.equal(make(start).sourceId, make(start).sourceId);
   assert.notEqual(make(start).sourceId, make(start + 10_000).sourceId);
 });
-test('only shares domains and drops incognito, non-web URLs and invalid events', () => {
+test('normalizes browser fields and drops incognito, credentialed and non-web URLs', () => {
   const web = { id: 'web', type: 'web.tab.current' };
   const make = (data) => ({ ...event, data });
-  const result = normalizeEvents(web, [make({ url: 'https://user:secret@example.com/private?token=abc#secret' }), make({ url: 'https://private.com', incognito: true }), make({ url: 'file:///private/file' })], start, start + 1000);
+  const result = normalizeEvents(web, [make({ url: 'https://example.com/private?token=abc#secret', title: 'Work page' }), make({ url: 'https://user:secret@example.com' }), make({ url: 'https://private.com', incognito: true }), make({ url: 'file:///private/file' })], start, start + 1000);
   assert.equal(result.length, 1);
   assert.equal(result[0].domain, 'example.com');
-  assert.equal(JSON.stringify(result).includes('secret'), false);
+  assert.equal(result[0].url, 'https://example.com/private?token=abc#secret');
+  assert.equal(result[0].title, 'Work page');
   assert.deepEqual(normalizeEvents(bucket, [{ ...event, duration: NaN }], start, start + 1000), []);
 });
 test('requires HTTPS for remote upload and rejects credentials, paths and query strings', () => {
   assert.equal(validateServer('https://test.onrender.com/'), 'https://test.onrender.com');
   assert.equal(validateServer('http://localhost:4000'), 'http://localhost:4000');
   for (const value of ['http://example.com', 'https://u:p@example.com', 'https://example.com/api', 'https://example.com?token=x']) assert.throws(() => validateServer(value));
+});
+test('pairing preflight requires official window and AFK watcher buckets', async () => {
+  const healthy = await inspectActivityWatch(async () => ({ window: { type: 'currentwindow' }, afk: { type: 'afkstatus' } }));
+  assert.deepEqual(healthy.types.sort(), ['afkstatus', 'currentwindow']);
+  await assert.rejects(inspectActivityWatch(async () => ({ window: { type: 'currentwindow' } })), /afkstatus/);
+  await assert.rejects(inspectActivityWatch(async () => []), /invalid bucket list/);
 });
 test('splits saturated API queries and deduplicates overlapping boundary events', async () => {
   let calls = 0;

@@ -1,10 +1,21 @@
-export const AW_BASE = 'http://127.0.0.1:5600/api/0';
+const configuredPort = typeof process !== 'undefined' ? process.env.FACETRACK_AW_PORT : undefined;
+const awPort = /^\d{1,5}$/.test(configuredPort || '') && Number(configuredPort) <= 65535 ? configuredPort : '5600';
+export const AW_BASE = `http://127.0.0.1:${awPort}/api/0`;
 export const SUPPORTED_TYPES = new Set(['currentwindow', 'afkstatus', 'web.tab.current']);
 
 export async function localJson(path, fetcher = fetch) {
   const response = await fetcher(`${AW_BASE}${path}`, { signal: AbortSignal.timeout(15_000), redirect: 'error' });
   if (!response.ok) throw new Error(`ActivityWatch returned HTTP ${response.status}. Check http://localhost:5600.`);
   return response.json();
+}
+
+export async function inspectActivityWatch(reader = localJson) {
+  const buckets = await reader('/buckets/');
+  if (!buckets || Array.isArray(buckets) || typeof buckets !== 'object') throw new Error('ActivityWatch returned an invalid bucket list');
+  const types = new Set(Object.values(buckets).map((bucket) => bucket?.type));
+  const missing = ['currentwindow', 'afkstatus'].filter((type) => !types.has(type));
+  if (missing.length) throw new Error(`ActivityWatch is running, but required watcher data is missing: ${missing.join(', ')}. Start the window and AFK watchers, then retry.`);
+  return { buckets, types: [...types].filter(Boolean) };
 }
 
 export async function readEvents(bucketId, start, end, reader = localJson, depth = 0) {
@@ -44,8 +55,10 @@ export function normalizeEvents(bucket, events, start, end, includeTitles = fals
     } else if (bucket.type === 'web.tab.current') {
       try {
         const url = new URL(event.data?.url);
-        if (!['http:', 'https:'].includes(url.protocol)) return [];
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return [];
         item.domain = url.hostname.toLowerCase().slice(0, 253);
+        item.url = url.href.slice(0, 2048);
+        item.title = String(event.data?.title || '').slice(0, 500);
       } catch { return []; }
     } else return [];
     return [item];

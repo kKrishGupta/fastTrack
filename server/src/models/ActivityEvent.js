@@ -12,6 +12,7 @@ const schema = new mongoose.Schema({
   app: { type: String, maxlength: 300 },
   title: { type: String, maxlength: 500 },
   domain: { type: String, maxlength: 253 },
+  url: { type: String, maxlength: 2048 },
   status: { type: String, enum: ['afk', 'not-afk'] },
   expiresAt: { type: Date, required: true },
 }, { timestamps: true });
