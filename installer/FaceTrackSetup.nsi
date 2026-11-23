@@ -20,7 +20,9 @@ SetOverwrite on
 
 Name "${PRODUCT_NAME}"
 OutFile "output\FaceTrackSetup.exe"
-InstallDir "$LOCALAPPDATA\Programs\GrabLogger"
+; Keep the established physical path so FaceTrack Monitoring upgrades in place.
+; Product-facing names are GrabLogger; state, executable and registry identities remain stable.
+InstallDir "$LOCALAPPDATA\Programs\FaceTrack Monitoring"
 InstallDirRegKey HKCU "Software\FaceTrack\Monitoring" "InstallDir"
 BrandingText "FaceTrack Pro"
 ShowInstDetails show
@@ -28,7 +30,7 @@ ShowUninstDetails show
 VIProductVersion "1.2.1.0"
 VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
-VIAddVersionKey "FileDescription" "FaceTrack Monitoring installer"
+VIAddVersionKey "FileDescription" "GrabLogger installer"
 VIAddVersionKey "FileVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey "LegalCopyright" "Copyright 2026 FaceTrack Pro"
@@ -67,7 +69,7 @@ Function .onInit
   ${EndIf}
   StrCpy $CommitComplete "0"
   FileOpen $InstallLog "$TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" w
-  FileWrite $InstallLog "FaceTrack Monitoring ${PRODUCT_VERSION} setup started.$\r$\n"
+  FileWrite $InstallLog "GrabLogger ${PRODUCT_VERSION} setup started.$\r$\n"
 FunctionEnd
 
 Function CheckDiskSpace
@@ -127,7 +129,7 @@ CloseLog:
   FileClose $InstallLog
 FunctionEnd
 
-Section "FaceTrack Monitoring (required)" Core
+Section "GrabLogger (required)" Core
   SectionIn RO
   StrCpy $StageDir "$INSTDIR.__new-${PRODUCT_VERSION}"
   StrCpy $PreviousDir "$INSTDIR.__previous"
@@ -199,6 +201,9 @@ CommitSucceeded:
   WriteRegDWORD HKCU "${PRODUCT_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${PRODUCT_KEY}" "NoRepair" 1
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+  ; Remove legacy shortcuts only after the new payload has committed successfully.
+  RMDir /r "$SMPROGRAMS\FaceTrack Monitoring"
+  RMDir /r "$SMPROGRAMS\GrabLogger"
   CreateDirectory "$SMPROGRAMS\GrabLogger"
   CreateShortcut "$SMPROGRAMS\GrabLogger\GrabLogger.lnk" "$INSTDIR\${PRODUCT_EXE}"
   CreateShortcut "$SMPROGRAMS\GrabLogger\Uninstall GrabLogger.lnk" "$INSTDIR\Uninstall.exe"
@@ -217,7 +222,9 @@ Section "un.GrabLogger"
   DeleteRegKey HKCU "Software\FaceTrack\Monitoring"
   DeleteRegKey HKCU "${PRODUCT_KEY}"
   RMDir /r "$SMPROGRAMS\GrabLogger"
+  RMDir /r "$SMPROGRAMS\FaceTrack Monitoring"
   MessageBox MB_ICONQUESTION|MB_YESNO "Also delete FaceTrack connection state and its encrypted offline queue from this Windows profile?" /SD IDNO IDNO KeepFaceTrackState
+  ExecWait '"$INSTDIR\${PRODUCT_EXE}" --purge-state'
   RMDir /r "$LOCALAPPDATA\FaceTrack\Monitoring"
 KeepFaceTrackState:
   MessageBox MB_ICONQUESTION|MB_YESNO "Also delete the FaceTrack-managed local ActivityWatch history from this Windows profile? Personal ActivityWatch data on its default profile is never removed." /SD IDNO IDNO KeepActivityWatch

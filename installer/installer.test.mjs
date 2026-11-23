@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { findInstallerCompiler } from './compiler.mjs';
 
 test('NSIS installer uses preflight, verified staging, rollback and non-solid compression', async () => {
   const source = await readFile(resolve('installer', 'FaceTrackSetup.nsi'), 'utf8');
@@ -16,6 +17,30 @@ test('NSIS installer uses preflight, verified staging, rollback and non-solid co
   assert.match(source, /\$INSTDIR\.__new-/);
   assert.match(source, /verify-payload\.mjs/);
   assert.match(source, /Rename "\$PreviousDir" "\$INSTDIR"/);
+  assert.match(source, /PRODUCT_NAME "GrabLogger"/);
+  assert.match(source, /InstallDir "\$LOCALAPPDATA\\Programs\\FaceTrack Monitoring"/);
+  assert.match(source, /PRODUCT_EXE "FaceTrackMonitoring\.exe"/);
+  assert.match(source, /PRODUCT_KEY "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\FaceTrackMonitoring"/);
+  assert.match(source, /Software\\FaceTrack\\Monitoring/);
+  assert.match(source, /CurrentVersion\\Run" "FaceTrackMonitoring"/);
+  assert.match(source, /RMDir \/r "\$SMPROGRAMS\\FaceTrack Monitoring"/);
+  assert.match(source, /--purge-state/);
+});
+
+test('installer compiler discovery supports PATH and explicit paths', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'facetrack-compiler-'));
+  try {
+    const bin = join(root, 'bin');
+    await mkdir(bin);
+    const compiler = join(bin, 'makensis.exe');
+    await writeFile(compiler, 'test compiler');
+    assert.equal(await findInstallerCompiler({ kind: 'nsis', env: { PATH: bin, ProgramFiles: join(root, 'pf'), ProgramFilesX86: join(root, 'pfx86') } }), compiler);
+    assert.equal(await findInstallerCompiler({ kind: 'nsis', explicit: compiler }), compiler);
+    await assert.rejects(
+      findInstallerCompiler({ kind: 'nsis', explicit: join(root, 'missing.exe') }),
+      /NSIS compiler was not found at the requested path/
+    );
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test('installed payload verifier detects missing, extra and modified modules', async () => {

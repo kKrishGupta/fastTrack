@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, cp, readdir, stat, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, cp, readdir, unlink } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateServer } from '../facetrack-sync-agent/activitywatch.mjs';
 import { assertRuntimeClosure, copyRuntimeClosure, pruneActivityWatchSourceMaps } from './payload.mjs';
+import { findInstallerCompiler } from './compiler.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url)), root = dirname(here);
 const args = process.argv.slice(2);
@@ -87,11 +88,10 @@ await verifyManifest();
 await assertRuntimeClosure(join(stage, 'bridge'));
 if (JSON.parse(await readFile(join(stage, 'bridge', 'connection.json'), 'utf8')).server !== origin) throw new Error('Staged server origin does not match');
 if (!args.includes('--redistribution-reviewed') && !args.includes('--internal-test-build')) throw new Error('Staged only: complete the release license/source checklist, or explicitly request an unsigned internal test build.');
-const nsis = args.includes('--nsis');
-const compiler = args.includes('--compiler') ? option('--compiler') : nsis
-  ? 'C:\\Program Files (x86)\\NSIS\\makensis.exe'
-  : 'C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe';
-await stat(compiler);
+if (args.includes('--nsis') && args.includes('--inno')) throw new Error('Choose one installer compiler: --nsis or --inno.');
+const nsis = !args.includes('--inno');
+const compiler = await findInstallerCompiler({ kind: nsis ? 'nsis' : 'inno', explicit: option('--compiler') });
+console.log(`Using ${nsis ? 'NSIS' : 'Inno Setup'} compiler: ${compiler}`);
 await mkdir(join(here, 'output'), { recursive: true });
 const result = spawnSync(compiler, nsis ? ['/V2', join(here, 'FaceTrackSetup.nsi')] : [join(here, 'FaceTrackSetup.iss')], { stdio: 'inherit' });
 if (result.status !== 0) throw new Error('Installer compilation failed');

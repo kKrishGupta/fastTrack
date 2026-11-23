@@ -3,7 +3,8 @@
 AppId={{D992EBF1-BDFD-49F9-BE31-8EAD86543CC6}
 AppName=GrabLogger
 AppVersion={#AppVersion}
-DefaultDirName={localappdata}\Programs\GrabLogger
+; Preserve the established physical directory so legacy installations upgrade in place.
+DefaultDirName={localappdata}\Programs\FaceTrack Monitoring
 DefaultGroupName=GrabLogger
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible

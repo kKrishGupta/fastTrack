@@ -18,10 +18,11 @@ internal static class Program
         Application.ThreadException += (_, eventArgs) => DesktopLog.Write($"UI exception: {eventArgs.Exception}");
         TaskScheduler.UnobservedTaskException += (_, eventArgs) => { DesktopLog.Write($"Task exception: {eventArgs.Exception}"); eventArgs.SetObserved(); };
         if (args.Contains("--shutdown", StringComparer.OrdinalIgnoreCase) ||
-            args.Contains("--uninstall", StringComparer.OrdinalIgnoreCase))
+            args.Contains("--uninstall", StringComparer.OrdinalIgnoreCase) ||
+            args.Contains("--purge-state", StringComparer.OrdinalIgnoreCase))
         {
             SendCommandAsync("exit", 2500).GetAwaiter().GetResult();
-            if (args.Contains("--uninstall", StringComparer.OrdinalIgnoreCase))
+            if (args.Contains("--purge-state", StringComparer.OrdinalIgnoreCase))
             {
                 Thread.Sleep(2000);
                 AgentProcess.UnpairAsync().GetAwaiter().GetResult();
