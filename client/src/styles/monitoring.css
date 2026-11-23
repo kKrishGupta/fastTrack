@@ -10,6 +10,11 @@
 .monitoring-connect input:not([type=checkbox]), .monitoring-toolbar select { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface); color: var(--ink); }
 .monitoring-connect .monitoring-checkbox { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
 .monitoring-checkbox input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; }
+.monitoring-master-consent { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--cream); }
+.monitoring-master-consent > span { display: grid; gap: 6px; }
+.monitoring-master-consent strong { font-family: 'Manrope', sans-serif; color: var(--ink); }
+.monitoring-master-consent ul { margin: 2px 0 0; padding-left: 20px; color: var(--muted); }
+.monitoring-master-consent li + li { margin-top: 4px; }
 .monitoring-connect .button { justify-self: start; }
 .monitoring-pairing { display: grid; gap: 12px; background: var(--cream); padding: 20px; border: 1px solid var(--line); border-radius: 16px; margin-top: 20px; }
 .monitoring-pairing code { overflow-wrap: anywhere; font-size: 16px; }

@@ -21,11 +21,28 @@ export async function summary(user, { employeeId, start, end }) {
   return { ...summarizeActivity(events, { start, end, rules, attendance, requireAttendance: policy.requireAttendance,
     timezone: organization?.timezone || 'UTC' }), start, end, policyVersion: policy.version };
 }
-export async function timeline(user, { employeeId, start, end, cursor, limit }) {
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export async function timeline(user, { employeeId, deviceId, type, app, search, sort = 'desc', start, end, cursor, limit }) {
   const [cursorTime, cursorId] = cursor?.split('_') || [];
-  const items = await ActivityEvent.find({ ...scopeFor(user, employeeId), timestamp: { $gte: new Date(start), $lt: new Date(end) },
-    expiresAt: { $gt: new Date() }, ...(cursor && { $or: [{ timestamp: { $lt: new Date(cursorTime) } }, { timestamp: new Date(cursorTime), _id: { $lt: cursorId } }] }) })
-    .sort({ timestamp: -1, _id: -1 }).limit(limit + 1).lean();
+  const direction = sort === 'asc' ? 1 : -1;
+  const conditions = [];
+  if (cursor) conditions.push({ $or: direction === 1
+    ? [{ timestamp: { $gt: new Date(cursorTime) } }, { timestamp: new Date(cursorTime), _id: { $gt: cursorId } }]
+    : [{ timestamp: { $lt: new Date(cursorTime) } }, { timestamp: new Date(cursorTime), _id: { $lt: cursorId } }] });
+  if (search) {
+    const expression = new RegExp(escapeRegex(search), 'i');
+    conditions.push({ $or: [{ app: expression }, { domain: expression }, { title: expression }, { status: expression }] });
+  }
+  const items = await ActivityEvent.find({
+    ...scopeFor(user, employeeId),
+    ...(deviceId && { deviceId: new mongoose.Types.ObjectId(deviceId) }),
+    ...(type && { type }),
+    ...(app && { app }),
+    timestamp: { $gte: new Date(start), $lt: new Date(end) },
+    expiresAt: { $gt: new Date() },
+    ...(conditions.length && { $and: conditions }),
+  }).sort({ timestamp: direction, _id: direction }).limit(limit + 1).lean();
   const last = items[limit - 1];
-  return { items: items.slice(0, limit), nextCursor: items.length > limit ? `${new Date(last.timestamp).toISOString()}_${last._id}` : null };
+  return { items: items.slice(0, limit), nextCursor: items.length > limit ? `${new Date(last.timestamp).toISOString()}_${last._id}` : null, sort };
 }

@@ -61,7 +61,7 @@ export async function authenticateDevice(token) {
 }
 
 export async function listDevices(user, { employeeId } = {}) {
-  const scope = deviceScope(user);
+  const scope = { ...deviceScope(user), archivedAt: null };
   if (user.role === 'HR' && employeeId) scope.employeeId = employeeId;
   const items = await MonitoringDevice.find(scope).select('-__v').populate('employeeId', 'name employeeCode').sort({ createdAt: -1 }).limit(200).lean();
   return { items: items.map(publicDevice), limit: 200 };
@@ -110,6 +110,16 @@ export async function changeDeviceState(scope, id, status, actor = 'employee') {
     ...(status === 'revoked' ? [{ $unset: ['tokenHash', 'previousTokenHash', 'pairingHash'] }] : []),
   ], { new: true });
   if (!item) throw new ApiError(404, 'DEVICE_NOT_FOUND', 'Device not found or no longer enrolled');
+  return publicDevice(item);
+}
+
+export async function archiveRevokedDevice(user, id) {
+  const item = await MonitoringDevice.findOneAndUpdate(
+    { ...deviceScope(user), _id: id, status: 'revoked', archivedAt: null },
+    { $set: { archivedAt: new Date() } },
+    { new: true },
+  );
+  if (!item) throw new ApiError(404, 'DEVICE_NOT_FOUND', 'Only a revoked device can be cleaned');
   return publicDevice(item);
 }
 

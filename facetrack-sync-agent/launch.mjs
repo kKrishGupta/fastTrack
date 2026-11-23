@@ -31,7 +31,7 @@ async function verifyPackage() {
     const path = resolve(root, entry.path);
     if (!path.startsWith(`${root}\\`) || entry.path.includes('..')) throw new Error('Invalid package manifest');
     const bytes = await readFile(path);
-    if (createHash('sha256').update(bytes).digest('hex') !== entry.sha256) throw new Error('Installed files differ from the verified package. Reinstall FaceTrack Monitoring.');
+    if (createHash('sha256').update(bytes).digest('hex') !== entry.sha256) throw new Error('Installed files differ from the verified package. Reinstall GrabLogger.');
   }
 }
 async function stopChildren() {
@@ -97,20 +97,20 @@ async function waitForWatchers(child) {
 }
 async function main() {
   if (process.platform !== 'win32') throw new Error('The unified package supports Windows x64 only. Use index.mjs for development.');
-  if (!process.stdin.isTTY && !managed) throw new Error('Open FaceTrack Monitoring from the Start menu.');
+  if (!process.stdin.isTTY && !managed) throw new Error('Open GrabLogger from the Start menu.');
   await mkdir(stateDir, { recursive: true, mode: 0o700 });
   try { lock = await open(lockPath, 'wx'); }
   catch (error) {
     if (error.code !== 'EEXIST') throw error;
     const owner = Number(await readFile(lockPath, 'utf8'));
     if (!Number.isSafeInteger(owner) || owner < 1) throw new Error('Invalid launcher lock. Contact support; no processes were stopped.');
-    try { process.kill(owner, 0); throw new Error('FaceTrack Monitoring is already running. Open its existing console.'); }
+    try { process.kill(owner, 0); throw new Error('GrabLogger is already running. Open its existing console.'); }
     catch (probe) { if (probe.code !== 'ESRCH') throw probe; }
     await unlink(lockPath); lock = await open(lockPath, 'wx');
   }
   await lock.writeFile(String(process.pid)); await lock.sync();
   await verifyPackage();
-  console.log('FaceTrack Monitoring — official ActivityWatch + FaceTrack synchronization');
+  console.log('GrabLogger — official ActivityWatch + FaceTrack synchronization');
   console.log('This visible window must remain open. Close it to stop FaceTrack-managed components.');
   try { await readState(statePath); }
   catch (error) {

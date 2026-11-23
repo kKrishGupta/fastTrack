@@ -7,7 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const api = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() }));
 vi.mock('../../api', () => ({ api }));
 
-import { MonitoringPolicy } from './MonitoringInsights';
+import { MonitoringInsights } from './MonitoringInsights';
+import { MonitoringPolicyEditor } from './MonitoringPolicyEditor';
 
 const policy = {
   version: 1,
@@ -30,7 +31,7 @@ const policy = {
 
 function renderPolicy(props = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={client}><MonitoringPolicy isHr userId="hr-1" screenshotsAvailable {...props} /></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><MonitoringPolicyEditor userId="hr-1" screenshotsAvailable {...props} /></QueryClientProvider>);
 }
 
 beforeEach(() => {
@@ -66,5 +67,27 @@ describe('screenshot policy control', () => {
     await waitFor(() => expect(api.get.mock.calls.filter(([path]) => path === '/monitoring/policy').length).toBeGreaterThan(1));
     expect(screen.getByRole('checkbox', { name: /Enable screenshots only/i }).checked).toBe(true);
     expect(screen.getByRole('status').textContent).toContain('Policy saved.');
+  });
+});
+
+describe('HR monitoring workspace', () => {
+  it('does not duplicate the dedicated screenshot gallery route', async () => {
+    api.get.mockImplementation(async (path) => {
+      if (path === '/monitoring/summary') return { data: {
+        totals: { active: 0, idle: 0, productive: 0, unproductive: 0, neutral: 0, unknown: 0 },
+        days: [], timezone: 'Asia/Calcutta',
+      } };
+      if (path === '/monitoring/timeline') return { data: { items: [], nextCursor: null } };
+      if (path === '/monitoring/policy') return { data: { item: policy } };
+      if (path === '/monitoring/rules') return { data: { items: [] } };
+      throw new Error(`Unexpected monitoring request: ${path}`);
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><MonitoringInsights userId="hr-1" isHr hours={24} screenshotsAvailable /></QueryClientProvider>);
+
+    expect(await screen.findByText('Authorized activity and productivity')).toBeTruthy();
+    expect(await screen.findByText('Organization monitoring policy')).toBeTruthy();
+    expect(screen.queryByText('Authorized screenshot gallery')).toBeNull();
+    expect(api.get.mock.calls.some(([path]) => path === '/monitoring/screenshots')).toBe(false);
   });
 });

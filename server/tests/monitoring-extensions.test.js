@@ -41,6 +41,21 @@ it('employee history ignores a forged employee filter and retains organization s
   await timeline({ _id: employeeId, organizationId, role: 'Employee' }, { employeeId: '444444444444444444444444', start: '2026-01-01T00:00:00Z', end: '2026-01-02T00:00:00Z', limit: 50 });
   expect(mocks.event.find.mock.calls[0][0]).toMatchObject({ organizationId, employeeId });
 });
+it('tenant-scopes timeline filters and escapes activity search text', async () => {
+  const chain = { sort: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue([]) };
+  mocks.event.find.mockReturnValue(chain);
+  const deviceId = '333333333333333333333333';
+  await timeline({ _id: employeeId, organizationId, role: 'HR' }, {
+    employeeId, deviceId, type: 'currentwindow', app: 'Code.exe', search: 'project.*', sort: 'asc',
+    start: '2026-01-01T00:00:00Z', end: '2026-01-02T00:00:00Z', limit: 25,
+  });
+  const filter = mocks.event.find.mock.calls[0][0];
+  expect(filter).toMatchObject({ organizationId, type: 'currentwindow', app: 'Code.exe' });
+  expect(String(filter.employeeId)).toBe(employeeId);
+  expect(String(filter.deviceId)).toBe(deviceId);
+  expect(filter.$and[0].$or[0].app.source).toContain('\\.\\*');
+  expect(chain.sort).toHaveBeenCalledWith({ timestamp: 1, _id: 1 });
+});
 it('employee resume changes only the employee pause flag and preserves an admin hold', async () => {
   mocks.device.findOneAndUpdate.mockResolvedValue({ status: 'paused', adminHold: true });
   const result = await changeDeviceState({ organizationId, employeeId }, employeeId, 'active');

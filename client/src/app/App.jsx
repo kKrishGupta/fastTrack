@@ -17,6 +17,13 @@ import { ProtectedRoute } from '../routes/ProtectedRoute';
 import { EnrollmentRequiredRoute } from '../routes/EnrollmentRequiredRoute';
 import { MonitoringPage } from '../pages/MonitoringPage';
 import { ScreenshotsPage } from '../pages/hr/ScreenshotsPage';
+import { MonitoringWorkspaceLayout } from '../components/monitoring/MonitoringWorkspaceLayout';
+import { MonitoringOverviewPage } from '../pages/hr/monitoring/MonitoringOverviewPage';
+import { MonitoringLivePage } from '../pages/hr/monitoring/MonitoringLivePage';
+import { MonitoringHistoryPage } from '../pages/hr/monitoring/MonitoringHistoryPage';
+import { MonitoringAnalyticsPage } from '../pages/hr/monitoring/MonitoringAnalyticsPage';
+import { MonitoringDevicesPage } from '../pages/hr/monitoring/MonitoringDevicesPage';
+import { MonitoringPoliciesPage } from '../pages/hr/monitoring/MonitoringPoliciesPage';
 
 export function App() {
   return (
@@ -37,7 +44,14 @@ export function App() {
           <Route path="offices" element={<OfficesPage />} />
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="wfh-requests" element={<WfhApprovalsPage />} />
-          <Route path="monitoring" element={<MonitoringPage />} />
+          <Route path="monitoring" element={<MonitoringWorkspaceLayout />}>
+            <Route index element={<MonitoringOverviewPage />} />
+            <Route path="live" element={<MonitoringLivePage />} />
+            <Route path="history" element={<MonitoringHistoryPage />} />
+            <Route path="analytics" element={<MonitoringAnalyticsPage />} />
+            <Route path="devices" element={<MonitoringDevicesPage />} />
+            <Route path="policies" element={<MonitoringPoliciesPage />} />
+          </Route>
           <Route path="screenshots" element={<ScreenshotsPage />} />
         </Route>
       </Route>

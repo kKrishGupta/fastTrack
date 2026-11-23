@@ -45,7 +45,7 @@ internal static class Program
         catch (Exception exception)
         {
             DesktopLog.Write($"Fatal desktop exception: {exception}");
-            MessageBox.Show($"FaceTrack Monitoring could not open. Diagnostic log: {DesktopLog.Path}\n\n{exception.Message}", "FaceTrack Monitoring", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"GrabLogger could not open. Diagnostic log: {DesktopLog.Path}\n\n{exception.Message}", "GrabLogger", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

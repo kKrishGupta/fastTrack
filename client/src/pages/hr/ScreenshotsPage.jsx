@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { Camera, ChevronLeft, ChevronRight, Monitor, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { api } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +28,10 @@ const formatFileSize = (bytes) => {
 export const screenshotStorageLabel = (screenshot) => screenshot.format === 'jpg'
   ? `${formatFileSize(screenshot.byteLength)} compressed (30 KB max)`
   : formatFileSize(screenshot.byteLength);
+
+export const screenshotDeviceLabel = (screenshot) => screenshot.deviceId?.name
+  || screenshot.deviceId?.hostname
+  || 'Device';
 
 const groupByDate = (items) => {
   const groups = {};
@@ -80,6 +84,7 @@ function ScreenshotViewer({ screenshot, onClose, onNext, onPrev, hasNext, hasPre
         )}
 
         <div className="screenshot-viewer-meta">
+          <span>{screenshotDeviceLabel(screenshot.item)}</span>
           <span>{screenshot.item.width} × {screenshot.item.height}</span>
           <span>{screenshotStorageLabel(screenshot.item)}</span>
           <span>Expires {formatDateTime(screenshot.item.expiresAt)}</span>
@@ -99,7 +104,6 @@ export function ScreenshotsPage() {
   });
   const [page, setPage] = useState(1);
   const [selectedScreenshot, setSelectedScreenshot] = useState(null);
-  const [thumbnailCache, setThumbnailCache] = useState({});
 
   const employees = useQuery({
     queryKey: ['monitoring', 'employees', user?.id],
@@ -127,15 +131,23 @@ export function ScreenshotsPage() {
     refetchInterval: 60000,
   });
 
-  const loadThumbnail = useMutation({
-    mutationFn: async (id) => (await api.get(`/monitoring/screenshots/${id}/view`)).data,
-    onSuccess: (data, id) => {
-      setThumbnailCache(prev => ({ ...prev, [id]: data.viewUrl }));
-    },
+  const screenshotItems = screenshots.data?.items || [];
+  const thumbnailQueries = useQueries({
+    queries: screenshotItems.map((screenshot) => ({
+      queryKey: ['screenshots', 'thumbnail', user?.id, screenshot._id],
+      queryFn: async () => (await api.get(`/monitoring/screenshots/${screenshot._id}/view`)).data,
+      staleTime: 45_000,
+      retry: 1,
+    })),
   });
 
   const handleScreenshotClick = async (screenshot, index) => {
     try {
+      const cached = thumbnailQueries[index]?.data;
+      if (cached?.viewUrl) {
+        setSelectedScreenshot({ item: screenshot, viewUrl: cached.viewUrl, index });
+        return;
+      }
       const viewData = await api.get(`/monitoring/screenshots/${screenshot._id}/view`).then(res => res.data);
       setSelectedScreenshot({ item: screenshot, viewUrl: viewData.viewUrl, index });
     } catch (error) {
@@ -144,7 +156,7 @@ export function ScreenshotsPage() {
   };
 
   const handleNext = () => {
-    const items = screenshots.data?.items || [];
+    const items = screenshotItems;
     if (selectedScreenshot && selectedScreenshot.index < items.length - 1) {
       const nextScreenshot = items[selectedScreenshot.index + 1];
       handleScreenshotClick(nextScreenshot, selectedScreenshot.index + 1);
@@ -152,7 +164,7 @@ export function ScreenshotsPage() {
   };
 
   const handlePrev = () => {
-    const items = screenshots.data?.items || [];
+    const items = screenshotItems;
     if (selectedScreenshot && selectedScreenshot.index > 0) {
       const prevScreenshot = items[selectedScreenshot.index - 1];
       handleScreenshotClick(prevScreenshot, selectedScreenshot.index - 1);
@@ -171,8 +183,8 @@ export function ScreenshotsPage() {
 
   const stats = {
     total: screenshots.data?.total || 0,
-    employees: new Set((screenshots.data?.items || []).map(s => s.employeeId?._id).filter(Boolean)).size,
-    devices: new Set((screenshots.data?.items || []).map(s => s.deviceId).filter(Boolean)).size,
+    employees: new Set(screenshotItems.map(s => s.employeeId?._id).filter(Boolean)).size,
+    devices: new Set(screenshotItems.map(s => s.deviceId?._id || s.deviceId).filter(Boolean)).size,
     latest: screenshots.data?.items?.[0]?.capturedAt,
   };
 
@@ -284,36 +296,29 @@ export function ScreenshotsPage() {
           <h2 className="screenshots-date-heading">{date}</h2>
           <div className="screenshots-grid">
             {items.map((screenshot, index) => {
-              const globalIndex = screenshots.data.items.findIndex(s => s._id === screenshot._id);
+              const globalIndex = screenshotItems.findIndex(s => s._id === screenshot._id);
+              const thumbnail = thumbnailQueries[globalIndex];
               return (
                 <button
                   key={screenshot._id}
                   className="screenshot-card"
                   onClick={() => handleScreenshotClick(screenshot, globalIndex)}
                 >
-                  {thumbnailCache[screenshot._id] ? (
+                  {thumbnail?.data?.viewUrl ? (
                     <img
-                      src={thumbnailCache[screenshot._id]}
+                      src={thumbnail.data.viewUrl}
                       alt={`Screenshot from ${screenshot.employeeId?.name || 'employee'}`}
                       className="screenshot-thumbnail"
                     />
                   ) : (
-                    <div
-                      className="screenshot-thumbnail-placeholder"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        loadThumbnail.mutate(screenshot._id);
-                      }}
-                    >
-                      {loadThumbnail.isPending && loadThumbnail.variables === screenshot._id
-                        ? 'Loading...'
-                        : 'Click to preview'}
+                    <div className="screenshot-thumbnail-placeholder">
+                      {thumbnail?.isError ? 'Preview unavailable' : 'Loading preview...'}
                     </div>
                   )}
 
                   <div className="screenshot-card-info">
                     <strong>{screenshot.employeeId?.name || 'Employee'}</strong>
-                    <span><Monitor size={12} /> Device</span>
+                    <span><Monitor size={12} /> {screenshotDeviceLabel(screenshot)}</span>
                     <span>{formatTime(screenshot.capturedAt)}</span>
                     <small>{screenshot.width} × {screenshot.height} · {screenshotStorageLabel(screenshot)}</small>
                   </div>

@@ -8,7 +8,7 @@ import { ErrorState, LoadingState } from '../ui/DataState';
 const time = (seconds = 0) => `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
 const fields = ['version','enabled','includeTitles','browserEnabled','browserUrlMode','browserTitleEnabled','approvedBrowserBuckets','excludedApps','excludedDomains','requireAttendance','retentionDays','screenshotsEnabled','screenshotIntervalSeconds','screenshotRetentionDays','screenshotDisplayMode','screenshotExcludedApps'];
 
-export function MonitoringInsights({ userId, isHr, employeeId, hours, screenshotsAvailable, screenshotStorage, devices = [] }) {
+export function MonitoringInsights({ userId, isHr, employeeId, hours, screenshotsAvailable, screenshotStorage }) {
   const params = () => { const end = new Date(); return { start: new Date(+end - hours * 3600_000).toISOString(), end: end.toISOString(), ...(isHr && employeeId && { employeeId }) }; };
   const summary = useQuery({ queryKey: ['monitoring', 'summary', userId, employeeId, hours], queryFn: async () => (await api.get('/monitoring/summary', { params: params() })).data, refetchInterval: 30_000 });
   const timeline = useInfiniteQuery({ queryKey: ['monitoring', 'timeline', userId, employeeId, hours], initialPageParam: null,
@@ -20,7 +20,6 @@ export function MonitoringInsights({ userId, isHr, employeeId, hours, screenshot
       {summary.data && <><div className="monitoring-stats">{['active','idle','productive','unproductive','neutral','unknown'].map((name) => <div key={name}><span>{name}</span><strong>{time(summary.data.totals[name])}</strong></div>)}</div><p className="monitoring-muted">Unknown includes conflicting or incomplete observations and can overlap active time. Timezone: {summary.data.timezone}.</p><div className="monitoring-table-wrap"><table className="monitoring-table"><thead><tr><th>Day</th><th>Active</th><th>Idle</th><th>Productive</th><th>Unproductive</th><th>Neutral</th></tr></thead><tbody>{summary.data.days.map((day) => <tr key={day.date}><td>{day.date}</td>{['active','idle','productive','unproductive','neutral'].map((name) => <td key={name}>{time(day[name])}</td>)}</tr>)}</tbody></table></div></>}
     </Card>
     <Card className="monitoring-card"><h2>Activity history</h2>{timeline.isError && <ErrorState error={timeline.error} onRetry={timeline.refetch} />}<div className="monitoring-table-wrap"><table className="monitoring-table"><thead><tr><th>Observed at</th><th>Type</th><th>Activity</th><th>Duration</th></tr></thead><tbody>{timeline.data?.pages.flatMap((page) => page.items).map((event) => <tr key={event._id}><td>{new Date(event.timestamp).toLocaleString()}</td><td>{event.type}</td><td>{event.app || event.domain || event.status}{event.url && <small>{event.url}</small>}{event.title && <small>{event.title}</small>}</td><td>{Math.round(event.duration)}s</td></tr>)}</tbody></table></div>{timeline.hasNextPage && <Button variant="secondary" disabled={timeline.isFetchingNextPage} onClick={() => timeline.fetchNextPage()}>Load older activity</Button>}{timeline.isLoading && <LoadingState />}</Card>
-    {screenshotsAvailable && <ScreenshotGallery userId={userId} isHr={isHr} employeeId={employeeId} hours={hours} devices={devices} />}
     <MonitoringPolicy isHr={isHr} userId={userId} screenshotsAvailable={screenshotsAvailable} screenshotStorage={screenshotStorage} />
   </>;
 }

@@ -57,7 +57,7 @@ internal sealed class MainForm : Form
 
     internal MainForm(string pipeName)
     {
-        Text = "FaceTrack Monitoring";
+        Text = "GrabLogger";
         Width = 590;
         Height = 510;
         MinimumSize = new Size(550, 470);
@@ -75,7 +75,7 @@ internal sealed class MainForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         Controls.Add(root);
 
-        var heading = new Label { Text = "FaceTrack Monitoring", AutoSize = true, Font = new Font("Segoe UI", 18, FontStyle.Bold), Margin = new Padding(0, 0, 0, 8) };
+        var heading = new Label { Text = "GrabLogger", AutoSize = true, Font = new Font("Segoe UI", 18, FontStyle.Bold), Margin = new Padding(0, 0, 0, 8) };
         root.Controls.Add(heading);
         root.Controls.Add(status);
         root.Controls.Add(detail);
@@ -94,12 +94,12 @@ internal sealed class MainForm : Form
         root.Controls.Add(new Label { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(500, 0), Text = "Official ActivityWatch collects application and away status locally. FaceTrack uploads only data allowed by your organization policy. Closing this window keeps the visible tray indicator running." });
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Open FaceTrack Monitoring", null, (_, _) => ShowWindow());
+        menu.Items.Add("Open GrabLogger", null, (_, _) => ShowWindow());
         menu.Items.Add("Pause uploads", null, (_, _) => SendControl("pause"));
         menu.Items.Add("Resume uploads", null, (_, _) => SendControl("resume"));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, async (_, _) => await ExitAsync());
-        tray = new NotifyIcon { Icon = SystemIcons.Shield, Text = "FaceTrack Monitoring", Visible = true, ContextMenuStrip = menu };
+        tray = new NotifyIcon { Icon = SystemIcons.Shield, Text = "GrabLogger", Visible = true, ContextMenuStrip = menu };
         tray.DoubleClick += (_, _) => ShowWindow();
 
         connect.Click += async (_, _) => await ConnectAsync();
@@ -291,7 +291,7 @@ internal sealed class MainForm : Form
 
     private void SetStatus(string title, string message, Color color)
     {
-        status.Text = title; status.ForeColor = color; detail.Text = message; tray.Text = title.Length <= 63 ? $"FaceTrack: {title}"[..Math.Min(63, $"FaceTrack: {title}".Length)] : "FaceTrack Monitoring";
+        status.Text = title; status.ForeColor = color; detail.Text = message; tray.Text = title.Length <= 63 ? $"GrabLogger: {title}"[..Math.Min(63, $"GrabLogger: {title}".Length)] : "GrabLogger";
     }
 
     private void ShowWindow()
@@ -334,7 +334,7 @@ internal sealed class MainForm : Form
         eventArgs.Cancel = true;
         Hide();
         DesktopLog.Write("Main window hidden to tray by the user.");
-        tray.ShowBalloonTip(2000, "FaceTrack Monitoring is still running", "Use the tray icon to open, pause or stop monitoring.", ToolTipIcon.Info);
+        tray.ShowBalloonTip(2000, "GrabLogger is still running", "Use the tray icon to open, pause or stop monitoring.", ToolTipIcon.Info);
     }
 
     private async Task ExitAsync()

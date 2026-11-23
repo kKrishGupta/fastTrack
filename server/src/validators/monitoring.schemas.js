@@ -79,6 +79,11 @@ export const reportQuerySchema = z.object({
   return duration > 0 && duration <= 7 * 86400_000;
 }, { message: 'Choose a period between one second and seven days' });
 export const timelineQuerySchema = reportQuerySchema.and(z.object({
+  deviceId: id.optional(),
+  type: z.enum(['currentwindow', 'afkstatus', 'web.tab.current']).optional(),
+  app: z.string().trim().min(1).max(300).optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+  sort: z.enum(['desc', 'asc']).default('desc'),
   cursor: z.string().max(80).refine((value) => {
     const [timestamp, cursorId, extra] = value.split('_');
     return !extra && z.iso.datetime().safeParse(timestamp).success && /^[a-f\d]{24}$/i.test(cursorId || '');

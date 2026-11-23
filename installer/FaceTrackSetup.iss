@@ -1,10 +1,10 @@
 #define AppVersion "1.2.1"
 [Setup]
 AppId={{D992EBF1-BDFD-49F9-BE31-8EAD86543CC6}
-AppName=FaceTrack Monitoring
+AppName=GrabLogger
 AppVersion={#AppVersion}
-DefaultDirName={localappdata}\Programs\FaceTrack Monitoring
-DefaultGroupName=FaceTrack Monitoring
+DefaultDirName={localappdata}\Programs\GrabLogger
+DefaultGroupName=GrabLogger
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -14,29 +14,29 @@ Compression=lzma2
 SolidCompression=no
 CloseApplications=yes
 RestartApplications=no
-UninstallDisplayName=FaceTrack Monitoring
+UninstallDisplayName=GrabLogger
 WizardStyle=modern
 
 [Files]
 Source: "stage\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\FaceTrack Monitoring"; Filename: "{app}\FaceTrackMonitoring.exe"; WorkingDir: "{app}"
-Name: "{group}\Uninstall FaceTrack Monitoring"; Filename: "{uninstallexe}"
+Name: "{group}\GrabLogger"; Filename: "{app}\FaceTrackMonitoring.exe"; WorkingDir: "{app}"
+Name: "{group}\Uninstall GrabLogger"; Filename: "{uninstallexe}"
 
 [Tasks]
-Name: "login"; Description: "Open the visible FaceTrack monitoring window when I sign in"; Flags: unchecked
+Name: "login"; Description: "Open the visible GrabLogger window when I sign in"; Flags: unchecked
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FaceTrackMonitoring"; ValueData: """{app}\FaceTrackMonitoring.exe"""; Tasks: login; Flags: uninsdeletevalue
 
 [Run]
-Filename: "{app}\FaceTrackMonitoring.exe"; Description: "Open FaceTrack enrollment and monitoring"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\FaceTrackMonitoring.exe"; Description: "Open GrabLogger enrollment and monitoring"; Flags: postinstall nowait skipifsilent
 
 [Code]
 function InitializeUninstall(): Boolean;
 begin
-  Result := MsgBox('Close the visible FaceTrack monitoring window first. Revoke this device from your employee dashboard to invalidate its credential. Local activity data is retained for your control; see the installation guide for deletion.', mbConfirmation, MB_OKCANCEL) = IDOK;
+  Result := MsgBox('Close the visible GrabLogger window first. Revoke this device from your employee dashboard to invalidate its credential. Local activity data is retained for your control; see the installation guide for deletion.', mbConfirmation, MB_OKCANCEL) = IDOK;
 end;
 
 [UninstallRun]

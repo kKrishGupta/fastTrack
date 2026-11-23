@@ -47,6 +47,7 @@ export function createMonitoringRouter({ authenticate }) {
   router.get('/employees', requireRole('HR'), asyncHandler(controller.employees));
   router.post('/devices', requireRole('Employee'), rateLimit({ windowMs: 60 * 60_000, limit: 10 }), validate(createDeviceSchema), asyncHandler(controller.create));
   router.patch('/devices/:id', validate(deviceParams, 'params'), validate(deviceStateSchema), asyncHandler(controller.change));
+  router.delete('/devices/:id', validate(deviceParams, 'params'), asyncHandler(controller.clean));
   router.patch('/devices/:id/consent', requireRole('Employee'), validate(deviceParams, 'params'), validate(deviceConsentSchema), asyncHandler(controller.grantConsent));
   router.get('/report', validate(reportQuerySchema, 'query'), asyncHandler(controller.report));
   router.get('/summary', validate(reportQuerySchema, 'query'), asyncHandler(controller.summary));

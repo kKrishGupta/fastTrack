@@ -132,7 +132,9 @@ export async function listScreenshots(user, query) {
   const filter = { ...scope, status: 'available', capturedAt: { $gte: new Date(query.start), $lt: new Date(query.end) }, expiresAt: { $gt: new Date() } };
   const [items, total] = await Promise.all([
     ScreenshotCapture.find(filter).select('-cloudinaryPublicId -cloudinaryAssetId -cloudinaryVersion -sha256')
-      .populate('employeeId', 'name employeeCode').sort({ capturedAt: -1, _id: -1 }).skip((query.page - 1) * query.limit).limit(query.limit).lean(),
+      .populate('employeeId', 'name employeeCode')
+      .populate('deviceId', 'name hostname')
+      .sort({ capturedAt: -1, _id: -1 }).skip((query.page - 1) * query.limit).limit(query.limit).lean(),
     ScreenshotCapture.countDocuments(filter),
   ]);
   return { items: items.map(publicCapture), page: query.page, limit: query.limit, total, pages: Math.max(1, Math.ceil(total / query.limit)) };

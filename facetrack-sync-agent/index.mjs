@@ -141,8 +141,8 @@ async function run() {
   const outbox = new Outbox(join(dirname(statePath), 'outbox.sqlite'), state.outboxKey);
   const screenshotOutbox = new ScreenshotOutbox(join(dirname(statePath), 'screenshots.sqlite'), state.outboxKey);
   state.server = validateServer(state.server);
-  console.log(`FaceTrack monitoring agent | ${state.server}`);
-  console.log(managed ? 'Managed by the FaceTrack desktop status application.' : 'Visible test agent: p = pause uploads, r = resume, q = stop. Ctrl+C also stops uploads.');
+  console.log(`GrabLogger monitoring agent | ${state.server}`);
+  console.log(managed ? 'Managed by the GrabLogger desktop status application.' : 'Visible test agent: p = pause uploads, r = resume, q = stop. Ctrl+C also stops uploads.');
   console.log('ActivityWatch keeps its own local records when this agent is paused or stopped.');
   console.log('Uploads are delayed by 3 minutes so ActivityWatch can finalize away status.');
   console.log(`Window titles: ${state.includeTitles ? 'included' : 'excluded'} | Retention: see your organization policy`);

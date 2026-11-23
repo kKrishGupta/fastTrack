@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   config: vi.fn(), uploadStream: vi.fn(), destroy: vi.fn(), privateUrl: vi.fn(),
-  create: vi.fn(), findOne: vi.fn(), getPolicy: vi.fn(), effective: vi.fn(), attendance: vi.fn(),
+  create: vi.fn(), find: vi.fn(), findOne: vi.fn(), countDocuments: vi.fn(), getPolicy: vi.fn(), effective: vi.fn(), attendance: vi.fn(),
 }));
 vi.mock('cloudinary', () => ({ v2: {
   config: mocks.config,
@@ -10,11 +10,11 @@ vi.mock('cloudinary', () => ({ v2: {
   utils: { private_download_url: mocks.privateUrl },
 } }));
 vi.mock('../src/models.js', () => ({ Attendance: { exists: mocks.attendance } }));
-vi.mock('../src/models/ScreenshotCapture.js', () => ({ ScreenshotCapture: { create: mocks.create, findOne: mocks.findOne } }));
+vi.mock('../src/models/ScreenshotCapture.js', () => ({ ScreenshotCapture: { create: mocks.create, find: mocks.find, findOne: mocks.findOne, countDocuments: mocks.countDocuments } }));
 vi.mock('../src/services/monitoring-policy.service.js', () => ({ getPolicy: mocks.getPolicy, effectivePolicy: mocks.effective }));
 vi.mock('../src/services/monitoring.service.js', () => ({ deviceScope: (user) => ({ organizationId: user.organizationId, ...(user.role === 'Employee' && { employeeId: user._id }) }) }));
 
-import { getScreenshotAccess, requestUpload, uploadContent } from '../src/services/monitoring-screenshot.service.js';
+import { getScreenshotAccess, listScreenshots, requestUpload, uploadContent } from '../src/services/monitoring-screenshot.service.js';
 import { screenshotRequestSchema } from '../src/validators/monitoring.schemas.js';
 
 const config = Object.freeze({ cloudinaryCloudName: 'tenant-cloud', cloudinaryApiKey: 'key', cloudinaryApiSecret: 'secret', cloudinaryScreenshotFolder: 'facetrack/screenshots' });
@@ -100,4 +100,22 @@ it('tenant-scopes gallery access and issues a one-minute authenticated delivery 
   expect(mocks.findOne.mock.calls[0][0]).toMatchObject({ organizationId: device.organizationId, _id: item._id, status: 'available' });
   expect(mocks.privateUrl.mock.calls[0][2]).toMatchObject({ type: 'authenticated', expires_at: expect.any(Number) });
   expect(result.viewUrl).toContain('cloudinary.com');
+});
+
+it('returns populated employee and device metadata for the authorized gallery', async () => {
+  const item = { _id: '444444444444444444444444', ...input, status: 'available',
+    employeeId: { _id: device.employeeId, name: 'Jane', employeeCode: 'E-1' },
+    deviceId: { _id: device._id, name: 'Work laptop', hostname: 'WORK-01' } };
+  const query = {};
+  for (const method of ['select', 'populate', 'sort', 'skip', 'limit']) query[method] = vi.fn(() => query);
+  query.lean = vi.fn().mockResolvedValue([item]);
+  mocks.find.mockReturnValue(query);
+  mocks.countDocuments.mockResolvedValue(1);
+
+  const user = { id: '555555555555555555555555', organizationId: device.organizationId, role: 'HR' };
+  const result = await listScreenshots(user, { start: '2026-11-23T00:00:00.000Z', end: '2026-11-24T00:00:00.000Z', page: 1, limit: 24 });
+
+  expect(query.populate).toHaveBeenNthCalledWith(1, 'employeeId', 'name employeeCode');
+  expect(query.populate).toHaveBeenNthCalledWith(2, 'deviceId', 'name hostname');
+  expect(result.items[0].deviceId).toMatchObject({ name: 'Work laptop', hostname: 'WORK-01' });
 });

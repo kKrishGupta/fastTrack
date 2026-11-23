@@ -415,8 +415,13 @@ export async function checkOut(user) {
 
 export async function getLatestAttendance(user) {
   const organization = await Organization.findById(user.organizationId).select('timezone');
+  const scope = { ...organizationFilter(user), employeeId: user.id };
+  const active = await Attendance.findOne({ ...scope, sessionStatus: 'working' })
+    .populate('officeId', 'name address radiusMeters')
+    .sort({ checkInAt: -1 });
+  if (active) return active;
   const attendanceDate = localDateKey(new Date(), organization?.timezone || 'UTC');
-  return Attendance.findOne({ ...organizationFilter(user), employeeId: user.id, attendanceDate })
+  return Attendance.findOne({ ...scope, attendanceDate })
     .populate('officeId', 'name address radiusMeters')
     .sort({ checkInAt: -1 });
 }

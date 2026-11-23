@@ -107,9 +107,9 @@ describe('monitoring security and storage', () => {
     mocks.device.find.mockReturnValue(chain);
     const selected = '444444444444444444444444';
     await listDevices({ ...employee, role: 'HR' }, { employeeId: selected });
-    expect(mocks.device.find).toHaveBeenLastCalledWith({ organizationId: employee.organizationId, employeeId: selected });
+    expect(mocks.device.find).toHaveBeenLastCalledWith({ organizationId: employee.organizationId, employeeId: selected, archivedAt: null });
     await listDevices(employee, { employeeId: selected });
-    expect(mocks.device.find).toHaveBeenLastCalledWith(deviceScope(employee));
+    expect(mocks.device.find).toHaveBeenLastCalledWith({ ...deviceScope(employee), archivedAt: null });
   });
 });
 
@@ -209,6 +209,16 @@ describe('monitoring HTTP endpoints', () => {
     mocks.employee.findOne.mockResolvedValue({ ...employee, role: 'HR' });
     const forbidden = await request(app).post('/api/monitoring/devices').set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test').send({ name: 'Test', consent: true });
     expect(forbidden.status).toBe(403);
+  });
+  it('cleans only a revoked device in the authenticated tenant scope', async () => {
+    mocks.device.findOneAndUpdate.mockResolvedValue({ ...device, status: 'revoked', archivedAt: new Date() });
+    const response = await request(app).delete(`/api/monitoring/devices/${device._id}`)
+      .set('Cookie', sessionCookie()).set('X-XSRF-TOKEN', 'test');
+    expect(response.status).toBe(204);
+    expect(mocks.device.findOneAndUpdate.mock.calls[0][0]).toEqual({
+      ...deviceScope(employee), _id: device._id, status: 'revoked', archivedAt: null,
+    });
+    expect(mocks.device.findOneAndUpdate.mock.calls[0][1]).toEqual({ $set: { archivedAt: expect.any(Date) } });
   });
   it('rejects oversized batches and report periods longer than seven days', async () => {
     const oversized = await request(app).post('/api/monitoring/agent/events').set('Authorization', `Bearer ${token}`).send({ events: Array.from({ length: 501 }, event) });
