@@ -9,7 +9,7 @@ SetOverwrite on
 !include "x64.nsh"
 !include "FileFunc.nsh"
 
-!define PRODUCT_NAME "FaceTrack Monitoring"
+!define PRODUCT_NAME "GrabLogger"
 !define PRODUCT_VERSION "1.2.1"
 !define PRODUCT_PUBLISHER "FaceTrack Pro"
 !define PRODUCT_EXE "FaceTrackMonitoring.exe"
@@ -20,7 +20,7 @@ SetOverwrite on
 
 Name "${PRODUCT_NAME}"
 OutFile "output\FaceTrackSetup.exe"
-InstallDir "$LOCALAPPDATA\Programs\FaceTrack Monitoring"
+InstallDir "$LOCALAPPDATA\Programs\GrabLogger"
 InstallDirRegKey HKCU "Software\FaceTrack\Monitoring" "InstallDir"
 BrandingText "FaceTrack Pro"
 ShowInstDetails show
@@ -45,7 +45,7 @@ Var CommitComplete
 !define MUI_ABORTWARNING
 !define MUI_CUSTOMFUNCTION_ABORT InstallerAbort
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXE}"
-!define MUI_FINISHPAGE_RUN_TEXT "Open FaceTrack Monitoring"
+!define MUI_FINISHPAGE_RUN_TEXT "Open GrabLogger"
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -58,11 +58,11 @@ Var CommitComplete
 
 Function .onInit
   ${IfNot} ${AtLeastWin10}
-    MessageBox MB_ICONSTOP|MB_OK "FaceTrack Monitoring requires Windows 10 or newer."
+    MessageBox MB_ICONSTOP|MB_OK "GrabLogger requires Windows 10 or newer."
     Abort
   ${EndIf}
   ${IfNot} ${RunningX64}
-    MessageBox MB_ICONSTOP|MB_OK "This FaceTrack Monitoring build requires 64-bit Windows."
+    MessageBox MB_ICONSTOP|MB_OK "This GrabLogger build requires 64-bit Windows."
     Abort
   ${EndIf}
   StrCpy $CommitComplete "0"
@@ -81,20 +81,20 @@ Function CheckDiskSpace
     ${If} $FreeInstallMb < ${INSTALL_MB_SHARED}
       FileWrite $InstallLog "ERROR 112: shared install/temp volume requires ${INSTALL_MB_SHARED} MB free.$\r$\n"
       SetErrorLevel 112
-      MessageBox MB_ICONSTOP|MB_OK "FaceTrack Monitoring needs at least ${INSTALL_MB_SHARED} MB free on $InstallRoot because Windows temporary files and the staged installation share this drive. Free disk space and run setup again.$\r$\n$\r$\nNo existing installation or ActivityWatch data was changed.$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
+      MessageBox MB_ICONSTOP|MB_OK "GrabLogger needs at least ${INSTALL_MB_SHARED} MB free on $InstallRoot because Windows temporary files and the staged installation share this drive. Free disk space and run setup again.$\r$\n$\r$\nNo existing installation or ActivityWatch data was changed.$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
       Abort
     ${EndIf}
   ${Else}
     ${If} $FreeInstallMb < ${INSTALL_MB_SEPARATE}
       FileWrite $InstallLog "ERROR 112: install volume requires ${INSTALL_MB_SEPARATE} MB free.$\r$\n"
       SetErrorLevel 112
-      MessageBox MB_ICONSTOP|MB_OK "FaceTrack Monitoring needs at least ${INSTALL_MB_SEPARATE} MB free on $InstallRoot for its atomic staged installation. Free disk space or choose another location and run setup again.$\r$\n$\r$\nNo existing installation or ActivityWatch data was changed.$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
+      MessageBox MB_ICONSTOP|MB_OK "GrabLogger needs at least ${INSTALL_MB_SEPARATE} MB free on $InstallRoot for its atomic staged installation. Free disk space or choose another location and run setup again.$\r$\n$\r$\nNo existing installation or ActivityWatch data was changed.$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
       Abort
     ${EndIf}
     ${If} $FreeTempMb < ${TEMP_MB_SEPARATE}
       FileWrite $InstallLog "ERROR 112: Windows temporary volume requires ${TEMP_MB_SEPARATE} MB free.$\r$\n"
       SetErrorLevel 112
-      MessageBox MB_ICONSTOP|MB_OK "FaceTrack Monitoring needs at least ${TEMP_MB_SEPARATE} MB free on the Windows temporary drive $TempRoot. Free disk space and run setup again.$\r$\n$\r$\nNo existing installation or ActivityWatch data was changed.$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
+      MessageBox MB_ICONSTOP|MB_OK "GrabLogger needs at least ${TEMP_MB_SEPARATE} MB free on the Windows temporary drive $TempRoot. Free disk space and run setup again.$\r$\n$\r$\nNo existing installation or ActivityWatch data was changed.$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
       Abort
     ${EndIf}
   ${EndIf}
@@ -134,7 +134,7 @@ Section "FaceTrack Monitoring (required)" Core
   Call CheckDiskSpace
 
   IfFileExists "$INSTDIR\${PRODUCT_EXE}" 0 ExistingStopped
-    DetailPrint "Stopping the existing FaceTrack Monitoring desktop process..."
+    DetailPrint "Stopping the existing GrabLogger desktop process..."
     ExecWait '"$INSTDIR\${PRODUCT_EXE}" --shutdown' $0
     FileWrite $InstallLog "Existing desktop shutdown exit=$0.$\r$\n"
 ExistingStopped:
@@ -173,7 +173,7 @@ PreviousCleared:
     Rename "$INSTDIR" "$PreviousDir"
     IfErrors 0 CommitNewInstall
       SetErrorLevel 32
-      MessageBox MB_ICONSTOP|MB_OK "FaceTrack Setup could not replace the existing installation because a file is still in use (error 32). Close FaceTrack Monitoring and run setup again.$\r$\n$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
+      MessageBox MB_ICONSTOP|MB_OK "FaceTrack Setup could not replace the existing installation because a file is still in use (error 32). Close GrabLogger and run setup again.$\r$\n$\r$\nDiagnostic log: $TEMP\FaceTrackSetup-${PRODUCT_VERSION}.log" /SD IDOK
       Abort
 CommitFreshInstall:
   RMDir "$INSTDIR"
@@ -199,24 +199,24 @@ CommitSucceeded:
   WriteRegDWORD HKCU "${PRODUCT_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${PRODUCT_KEY}" "NoRepair" 1
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  CreateDirectory "$SMPROGRAMS\FaceTrack Monitoring"
-  CreateShortcut "$SMPROGRAMS\FaceTrack Monitoring\FaceTrack Monitoring.lnk" "$INSTDIR\${PRODUCT_EXE}"
-  CreateShortcut "$SMPROGRAMS\FaceTrack Monitoring\Uninstall FaceTrack Monitoring.lnk" "$INSTDIR\Uninstall.exe"
+  CreateDirectory "$SMPROGRAMS\GrabLogger"
+  CreateShortcut "$SMPROGRAMS\GrabLogger\GrabLogger.lnk" "$INSTDIR\${PRODUCT_EXE}"
+  CreateShortcut "$SMPROGRAMS\GrabLogger\Uninstall GrabLogger.lnk" "$INSTDIR\Uninstall.exe"
   RMDir /r "$PreviousDir"
   FileWrite $InstallLog "Setup completed successfully.$\r$\n"
   FileClose $InstallLog
 SectionEnd
 
-Section /o "Start FaceTrack Monitoring when I sign in" Login
+Section /o "Start GrabLogger when I sign in" Login
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "FaceTrackMonitoring" '"$INSTDIR\${PRODUCT_EXE}"'
 SectionEnd
 
-Section "un.FaceTrack Monitoring"
+Section "un.GrabLogger"
   ExecWait '"$INSTDIR\${PRODUCT_EXE}" --uninstall'
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "FaceTrackMonitoring"
   DeleteRegKey HKCU "Software\FaceTrack\Monitoring"
   DeleteRegKey HKCU "${PRODUCT_KEY}"
-  RMDir /r "$SMPROGRAMS\FaceTrack Monitoring"
+  RMDir /r "$SMPROGRAMS\GrabLogger"
   MessageBox MB_ICONQUESTION|MB_YESNO "Also delete FaceTrack connection state and its encrypted offline queue from this Windows profile?" /SD IDNO IDNO KeepFaceTrackState
   RMDir /r "$LOCALAPPDATA\FaceTrack\Monitoring"
 KeepFaceTrackState:

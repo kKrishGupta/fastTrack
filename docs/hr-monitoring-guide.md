@@ -1,4 +1,4 @@
-# FaceTrack Monitoring — HR administrator guide
+# GrabLogger — HR administrator guide
 
 Use monitoring only for employees and devices covered by your organization’s disclosure, consent process and applicable policy. Activity observations do not alter attendance, payroll or biometric records.
 

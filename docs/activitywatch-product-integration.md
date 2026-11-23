@@ -28,7 +28,7 @@ The first staging command deliberately requires a fresh `installer/stage`; it do
 
 The Node build entry avoids requiring script-file execution in PowerShell; it invokes the standard archive extraction cmdlet without changing execution policy. The current PC blocks `.ps1` script files, so no PowerShell policy was changed.
 
-Install as the participating employee. Start-on-login is optional and unchecked by default. Open **FaceTrack Monitoring**. Before collectors start, an unpaired install asks inside the graphical app for the one-use code generated from Employee → Activity monitoring after disclosure/consent. No password or organization-wide key is installed. The window and tray icon show connection state and provide Pause uploads, Resume uploads, Stop monitoring, Start monitoring and Disconnect device. Closing the window leaves the visible tray indicator running; Exit stops the package-owned process tree. Internal Node/ActivityWatch consoles are hidden.
+Install as the participating employee. Start-on-login is optional and unchecked by default. Open **GrabLogger**. Before collectors start, an unpaired install asks inside the graphical app for the one-use code generated from Employee → Activity monitoring after disclosure/consent. No password or organization-wide key is installed. The window and tray icon show connection state and provide Pause uploads, Resume uploads, Stop monitoring, Start monitoring and Disconnect device. Closing the window leaves the visible tray indicator running; Exit stops the package-owned process tree. Internal Node/ActivityWatch consoles are hidden.
 
 ## Official component configuration and ownership
 

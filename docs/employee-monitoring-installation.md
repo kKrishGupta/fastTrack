@@ -1,4 +1,4 @@
-# FaceTrack Monitoring — employee installation
+# GrabLogger — employee installation
 
 This guide applies only to an approved company pilot. Read the monitoring disclosure in FaceTrack before connecting a device. The current repository artifact is unsigned and intended for internal testing; use a signed company download for a customer rollout.
 
@@ -9,7 +9,7 @@ This guide applies only to an approved company pilot. Read the monitoring disclo
 3. Choose **Create pairing code**. The code is one-use and expires.
 4. Download and open `FaceTrackSetup.exe` from the company-approved FaceTrack link.
 5. Complete the graphical wizard. **Start at sign-in** is optional and unchecked by default.
-6. Open **FaceTrack Monitoring**, paste the pairing code, and choose **Connect this computer**.
+6. Open **GrabLogger**, paste the pairing code, and choose **Connect this computer**.
 
 Collectors start only after successful enrollment. The application shows **Monitoring active**, **Uploads paused**, **Stopped**, or an error state. Internal ActivityWatch and Node processes do not show terminal windows.
 
@@ -28,10 +28,10 @@ FaceTrack uses a dedicated ActivityWatch profile on `127.0.0.1:5600`; it refuses
 
 - **Enrollment failed:** create a new pairing code and confirm the computer can reach the FaceTrack API over HTTPS.
 - **Port 5600 is already in use:** close the other ActivityWatch instance or ask IT which installation is authorized. FaceTrack will not reuse it automatically.
-- **ActivityWatch did not become ready:** exit FaceTrack Monitoring, reopen it, and send the displayed message to support. Never expose port 5600 to the network.
+- **ActivityWatch did not become ready:** exit GrabLogger, reopen it, and send the displayed message to support. Never expose port 5600 to the network.
 - **Device access revoked:** the device cannot upload. Ask HR whether a new approved pairing code is required.
 - **Clock differs:** enable Windows automatic date/time and timezone, then retry.
 
 ## Uninstall
 
-Use Windows **Installed apps → FaceTrack Monitoring → Uninstall**. Uninstall stops owned processes, attempts online device revocation, removes the FaceTrack credential/queue and asks separately whether to delete the dedicated FaceTrack-managed ActivityWatch history. If the computer is offline, revoke the device from the employee dashboard as well. Personal ActivityWatch data is not removed.
+Use Windows **Installed apps → GrabLogger → Uninstall**. Uninstall stops owned processes, attempts online device revocation, removes the FaceTrack credential/queue and asks separately whether to delete the dedicated FaceTrack-managed ActivityWatch history. If the computer is offline, revoke the device from the employee dashboard as well. Personal ActivityWatch data is not removed.

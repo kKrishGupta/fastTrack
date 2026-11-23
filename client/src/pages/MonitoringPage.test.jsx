@@ -16,7 +16,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('FaceTrack Monitoring installer publication', () => {
+describe('GrabLogger installer publication', () => {
   it('shows the versioned installer link, size and checksum', () => {
     const installer = { version: '1.2.0', channel: 'internal-qa', filename: 'FaceTrackSetup.exe',
       url: 'https://example.test/releases/v1.2.0/FaceTrackSetup.exe', sizeBytes: 188720289,
